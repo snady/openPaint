@@ -1,0 +1,35 @@
+DW APPROVED
+
+A COOL TITLE
+
+MEMBERS: Sandy Fang, Sally Bao
+Period 8
+
+SUMMARY:
+Our project is a collaborative real-time drawing program which will enable users on the same local network to draw on the same canvas. The program will offer standard standard drawing tools such as the brush, eraser, layers and basic customization of the tools (brush size, color, etc). Additional cooler features will be added if time allows for it (like more advanced tools and change history for undos!)
+
+USAGE:
+Users will interact with the canvas via a GUI. They can create their own canvas, which other users on the same network can connect to, or connect to an existing one. After connecting to a canvas, users can begin drawing as they would on a normal drawing program (using mouse control). Contributions from all users will show up on the same canvas, and all users will be able to manipulate the drawing.
+
+TECHNICAL DESIGN:
+Users will access the canvas through a network client-server relationship. Each new addition to the canvas will be sent to the server, which will display it to all other clients on the same canvas. As the canvas updates, its state will be saved in a shared memory segment so new entering users can view the same changes. Access will be controlled via a semaphore.
+
+DISTRIBUTION OF LABOR:
+Sandy
+Set up server
+Server interactions (Receiving and saving updates and distributing to clients)
+Drawing tools & functions
+Complaining about bugs, providing cat pictures
+
+Sally
+Make GUI base/Canvas
+Creating and joining canvases functionality 
+Client interactions (Displaying canvas and sending updates)
+Providing witty comments
+
+TIMELINE: 
++ 1/8/16 - Get approved for project 
++ 1/11/16 - Create a GUI and canvas that works for one person
++ 1/13/16 - Set up a server connection between users in the same network.
++ 1/16/16 - Make canvas visible on all connected clients, make sure changes are actually updated. (Pretty much have the project functioning)
++ 1/20/16 - Add super cool features, plant easter eggs, make the program look nice (which is always a good thing but somehow never a top priority and always distracts me from doing real work)
