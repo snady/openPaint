@@ -7,7 +7,7 @@ client: client.c
 	gcc -o client client.c
 
 gui: gtk_test.c
-	gcc $(`pkg-config --cflags --libs gtk+-2.0`) -o gui gtk_test.c 
+	gcc -o gui gtk_test.c `pkg-config --cflags --libs gtk+-2.0`
 
 clean:
 	rm ./server
