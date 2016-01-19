@@ -8,6 +8,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "server.h"
+
 int main(int argc, char **argv){
   int socket_id;
   char buff[256];
@@ -24,8 +26,8 @@ int main(int argc, char **argv){
   i = connect(socket_id, (struct sockaddr*)&sock, sizeof(sock));
   printf("<client> Connect returned: %d\n", i);
 
-  read(socket_id
+  read(socket_id, buff, sizeof(buff));
+	printf("<client> Received: %s\n", buff);
   
-
-  return 0;
+	return 0;
 }

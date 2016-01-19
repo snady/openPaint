@@ -7,6 +7,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include "server.h"
+
 int main(){
   int socket_id, socket_client;
 
