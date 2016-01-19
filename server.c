@@ -10,6 +10,9 @@
 #include "server.h"
 
 int main(){
+
+  char buffer[256];
+
   int socket_id, socket_client;
 
   //create socket
@@ -28,7 +31,10 @@ int main(){
   socket_client = accept(socket_id, NULL, NULL);
   printf("<server> Connected: %d\n", socket_client);
 
-  write(socket_client, "Hello", 6);
-  
+  while(1){
+    read(socket_client, buffer, 255);
+    write(socket_client, "Spaghetti Received", 255);
+    printf("<server> Recieved %s\n",buffer);
+  }
   return 0;
 }
