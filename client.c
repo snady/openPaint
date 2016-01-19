@@ -12,7 +12,7 @@
 
 int main(int argc, char **argv){
   int socket_id;
-  char buff[256];
+  char buffer[256];
   int i;
 
   socket_id = socket( AF_INET, SOCK_STREAM, 0);
@@ -25,9 +25,15 @@ int main(int argc, char **argv){
 
   i = connect(socket_id, (struct sockaddr*)&sock, sizeof(sock));
   printf("<client> Connect returned: %d\n", i);
-
-  read(socket_id, buff, sizeof(buff));
-	printf("<client> Received: %s\n", buff);
+  while(1){
+    printf("Send to Server: ");
+    fgets(buffer,sizeof(buffer),stdin);
+    *strchr( buffer, '\n' ) = 0;
+    
+    write(socket_id, buffer, 255);
+    read(socket_id, buffer, 255);
+    printf("<client> Received: %s\n", buffer);
+  }
   
 	return 0;
 }

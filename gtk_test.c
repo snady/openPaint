@@ -7,11 +7,10 @@
 //`pkg-config --cflags --libs gtk+-2.0`
 // https://developer.gnome.org/gtk-tutorial/stable/c39.html
 
-
-
 static gboolean delete_event(GtkWidget* widget, GdkEvent* event, gpointer data){
 
 	return FALSE;
+	
 }
 
 
@@ -50,7 +49,7 @@ int main(int argc, char** argv){
 	quitMi = gtk_menu_item_new_with_label("Quit");
 
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM(fileMi), fileMenu);
-  gtk_menu_shell_append(GTK_MENU_SHELL(fileMenu), quitMi);
+	gtk_menu_shell_append(GTK_MENU_SHELL(fileMenu), quitMi);
 	gtk_menu_shell_append(GTK_MENU_SHELL(menubar), fileMi);
 	gtk_box_pack_start(GTK_BOX(vbox), menubar, FALSE, FALSE, 0);
 
