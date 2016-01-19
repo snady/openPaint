@@ -56,7 +56,6 @@ int main(int argc, char** argv){
   
   fileMi = gtk_menu_item_new_with_label("File");
   quitMi = gtk_menu_item_new_with_label("Quit");
-  
 
   gtk_menu_item_set_submenu(GTK_MENU_ITEM(editMi), editMenu);
   gtk_menu_shell_append(GTK_MENU_SHELL(menubar), editMi);
@@ -78,7 +77,12 @@ int main(int argc, char** argv){
   
   /*---------------------------- Drawing ------------------------------*/
 	
+  GtkWidget* darea;
 
+  darea = gtk_drawing_area_new();
+  gtk_container_add(GTK_CONTAINER(window), darea);
+
+  //g_signal_connect(G_OBJECT(darea), "draw");
 
   
   /*-------------------------------------------------------------------*/
