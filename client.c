@@ -25,6 +25,7 @@ int main(int argc, char **argv){
 
   i = connect(socket_id, (struct sockaddr*)&sock, sizeof(sock));
   printf("<client> Connect returned: %d\n", i);
+  
   while(1){
     printf("Send to Server: ");
     fgets(buffer,sizeof(buffer),stdin);
