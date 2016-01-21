@@ -13,6 +13,7 @@ static GtkWidget* toolbar = NULL;
 static GdkColor* color = NULL;
 
     
+/*----------------------------- Drawing Area ------------------------------*/
 
 /*Create a new surface of the appropriate size to store scribbles
  */
@@ -116,73 +117,6 @@ static gboolean scribble_motion_notify_event(GtkWidget *widget,
     
 	return TRUE;
 }
-     
-
-     
-static void close_window(void){
-	window = NULL;
-	if (surface) 
-		g_object_unref (surface);
- 
-	surface = NULL;
-	gtk_main_quit();
-}
-
-static void color_set_event(GtkColorButton* color_button, gpointer data){
-	if (color == NULL)
-		color = (GdkColor*)malloc(sizeof(GdkColor*));
-	
-	gtk_color_button_get_color(color_button, color);	
-}
-
-static void setup_toolbar(){
-	GtkWidget* table;
-	GtkWidget* button;
-
-	if (!toolbar){
-		toolbar = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-		gtk_window_set_title(GTK_WINDOW(toolbar), "Toolbar");
-		gtk_window_set_default_size(GTK_WINDOW(toolbar), 200, 500);
-		gtk_widget_set_uposition(toolbar, 240, 260);
-		gtk_container_set_border_width(GTK_CONTAINER(toolbar), 20);
-	
-		g_signal_connect(G_OBJECT(toolbar), "delete-event",
-										 G_CALLBACK(gtk_widget_hide_on_delete), NULL);
-
-		table = gtk_table_new(8, 2, TRUE);
-		gtk_table_set_row_spacings(GTK_TABLE(table), 2);
-		gtk_table_set_col_spacings(GTK_TABLE(table), 2);
-
-		button = gtk_button_new_with_label("Draw");
-		gtk_table_attach_defaults(GTK_TABLE(table), button, 0, 1, 0, 1);
-
-		button = gtk_button_new_with_label("Erase");
-		gtk_table_attach_defaults(GTK_TABLE(table), button, 1, 2, 0, 1);
-
-		button = gtk_color_button_new();
-		gtk_table_attach_defaults(GTK_TABLE(table), button, 0, 2, 6, 8);
-		
-		g_signal_connect(G_OBJECT(button), "color-set",
-										 G_CALLBACK(color_set_event), NULL);
-
-		gtk_container_add(GTK_CONTAINER(toolbar), table);
-	}
-}
-
-
-static void setup_window(){
-	if (!window){
-		//instantiate principal parent window
-		window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-		gtk_window_set_title(GTK_WINDOW(window), "openPaint");
-		gtk_window_set_default_size(GTK_WINDOW(window), 500, 500);
-		gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
-		gtk_container_set_border_width(GTK_CONTAINER(window), 10);
-
-		g_signal_connect (G_OBJECT(window), "destroy",
-											G_CALLBACK (close_window), NULL);
-	}
-}
 
 
 static void do_drawing(){
@@ -215,6 +149,99 @@ static void do_drawing(){
 												| GDK_POINTER_MOTION_MASK
 												| GDK_POINTER_MOTION_HINT_MASK); 
 }
+
+     
+/*------------------------------- Window -----------------------------------*/
+     
+static void close_window(void){
+	window = NULL;
+	if (surface) 
+		g_object_unref (surface);
+ 
+	surface = NULL;
+	gtk_main_quit();
+}
+
+static void setup_window(){
+	if (!window){
+		//instantiate principal parent window
+		window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+		gtk_window_set_title(GTK_WINDOW(window), "openPaint");
+		gtk_window_set_default_size(GTK_WINDOW(window), 500, 500);
+		gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
+		gtk_container_set_border_width(GTK_CONTAINER(window), 10);
+
+		g_signal_connect (G_OBJECT(window), "destroy",
+											G_CALLBACK (close_window), NULL);
+	}
+}
+
+
+/*--------------------------------- Toolbar ------------------------------*/
+
+static void color_set_event(GtkColorButton* color_button, gpointer data){
+	if (color == NULL)
+		color = (GdkColor*)malloc(sizeof(GdkColor*));
+	
+	gtk_color_button_get_color(color_button, color);	
+}
+
+static void draw_button_click_event(GtkWidget* widget, gpointer data){
+	GdkCursor* cursor = gdk_cursor_new(GDK_PENCIL);
+	gdk_window_set_cursor(window->window, cursor);
+}
+
+static void erase_button_click_event(GtkWidget* widget, gpointer data){
+	GdkCursor* cursor = gdk_cursor_new(GDK_IRON_CROSS);
+	gdk_window_set_cursor(window->window, cursor);
+}
+
+
+static void setup_toolbar(){
+	GtkWidget* table;
+	GtkWidget* button;
+	GdkColor* col;
+
+	if (!toolbar){
+		toolbar = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+		gtk_window_set_title(GTK_WINDOW(toolbar), "Toolbar");
+		gtk_window_set_default_size(GTK_WINDOW(toolbar), 200, 500);
+		gtk_widget_set_uposition(toolbar, 240, 260);
+		gtk_container_set_border_width(GTK_CONTAINER(toolbar), 20);
+	
+		g_signal_connect(G_OBJECT(toolbar), "delete-event",
+										 G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+
+		table = gtk_table_new(8, 2, TRUE);
+		gtk_table_set_row_spacings(GTK_TABLE(table), 2);
+		gtk_table_set_col_spacings(GTK_TABLE(table), 2);
+
+		//Drawing
+		button = gtk_button_new_with_label("Draw");
+		gtk_table_attach_defaults(GTK_TABLE(table), button, 0, 1, 0, 1);
+
+		g_signal_connect(G_OBJECT(button), "clicked",
+										 G_CALLBACK(draw_button_click_event), NULL);
+		
+		//Erasing
+		button = gtk_button_new_with_label("Erase");
+		gtk_table_attach_defaults(GTK_TABLE(table), button, 1, 2, 0, 1);
+
+		g_signal_connect(G_OBJECT(button), "clicked",
+										 G_CALLBACK(erase_button_click_event), NULL);
+
+		button = gtk_color_button_new();
+		gtk_table_attach_defaults(GTK_TABLE(table), button, 0, 2, 6, 8);
+		
+		g_signal_connect(G_OBJECT(button), "color-set",
+										 G_CALLBACK(color_set_event), NULL);
+
+		gtk_container_add(GTK_CONTAINER(toolbar), table);
+	}
+}
+
+
+/*--------------------------------- Main ------------------------------*/
 
 
 int main(int argc, char *argv[]){
