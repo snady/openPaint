@@ -3,6 +3,7 @@
 #include <string.h>
 #include <gtk/gtk.h>
 #include "draw.h"
+#include "server.h"
 
 //http://snipplr.com/view/57664/
 
@@ -12,7 +13,36 @@ static cairo_surface_t* surface = NULL;
 static GtkWidget* toolbar = NULL;
 static GdkColor* color = NULL;
 
-    
+/*----------------------------- Data Handling ------------------------------*/
+
+void serialize_gdkColor(guint buff[4], GdkColor* color){
+  buff[0] = color -> pixel;
+  buff[1] = color -> red;
+  buff[2] = color -> green;
+  buff[3] = color -> blue;
+
+  /*
+  printf("Color\n");
+  int i;
+  for (i = 0; i < 4; i++)
+    printf("\tbuff[%d]: %d\n", i, buff[i]);
+  */
+}
+
+void serialize_gdkRectangle(gint buff[4], GdkRectangle* rect){
+  buff[0] = rect -> x;
+  buff[1] = rect -> y;
+  buff[2] = rect -> width;
+  buff[3] = rect -> width;
+  /*
+  printf("Rectangle\n");
+  int i;
+  for (i = 0; i < 4; i++)
+    printf("\tbuff[%d]: %d\n", i, buff[i]);
+  */
+}
+
+
 /*----------------------------- Drawing Area ------------------------------*/
 
 /*Create a new surface of the appropriate size to store scribbles
@@ -57,7 +87,7 @@ static gboolean scribble_expose_event(GtkWidget *widget,
      
 /*Draw a rectangle on the screen
  */
-static void draw_brush(GtkWidget *widget, gdouble x, gdouble y){
+static void draw_brush(GtkWidget *widget, gdouble x, gdouble y, int socket_id){
   GdkRectangle update_rect;
   //clear the buffer
   memset(&update_rect, 0, sizeof(GdkRectangle));
@@ -79,11 +109,18 @@ static void draw_brush(GtkWidget *widget, gdouble x, gdouble y){
   gdk_cairo_rectangle(cr, &update_rect);
   cairo_fill(cr);
   cairo_destroy(cr);
-     
+
   /*invalidate the affected region of the drawing area. */
   gdk_window_invalidate_rect(widget->window,
 			     &update_rect,
 			     FALSE);
+  //send data to server
+  gint buff[4];
+  guint colorbuff[4];
+  serialize_gdkRectangle(buff, &update_rect);
+  serialize_gdkColor(colorbuff, color);
+  write(socket_id, buff, sizeof(buff));
+  write(socket_id, colorbuff, sizeof(colorbuff));
 }
 
 
@@ -94,7 +131,7 @@ static gboolean scribble_button_press_event(GtkWidget *widget,
     return FALSE; 
     
   if (event->button == 1)
-    draw_brush(widget, event->x, event->y);
+    draw_brush(widget, event->x, event->y, data);
   
   return TRUE;
 }
@@ -113,13 +150,13 @@ static gboolean scribble_motion_notify_event(GtkWidget *widget,
   gdk_window_get_pointer(event->window, &x, &y, &state);
      
   if (state & GDK_BUTTON1_MASK)
-    draw_brush(widget, x, y);
+    draw_brush(widget, x, y, data);
     
   return TRUE;
 }
 
 
-static void do_drawing(){
+static void do_drawing(int socket_id){
   GtkWidget* da = NULL;
 
   da = gtk_drawing_area_new();
@@ -135,10 +172,10 @@ static void do_drawing(){
      
   /* Event signals */
   g_signal_connect(da, "motion-notify-event",
-		   G_CALLBACK(scribble_motion_notify_event), NULL);
+		   G_CALLBACK(scribble_motion_notify_event), socket_id);
  
   g_signal_connect(da, "button-press-event",
-		   G_CALLBACK(scribble_button_press_event), NULL);
+		   G_CALLBACK(scribble_button_press_event), socket_id);
   
   /* Ask to receive events the drawing area doesn't normally
    * subscribe to
@@ -179,6 +216,12 @@ static void setup_window(){
     //set initial action to draw
     cursor = gdk_cursor_new(GDK_PENCIL);
     gdk_window_set_cursor(window->window, cursor);
+
+    //set initial color to black
+    color = (GdkColor*)malloc(sizeof(GdkColor*));
+    color -> red = 255;
+    color -> blue = 255;
+    color -> green = 255;
   }
 }
 
