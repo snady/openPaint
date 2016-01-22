@@ -1,8 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <gtk/gtk.h>
 #include "draw.h"
+
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
+#include "server.h"
 
 //http://snipplr.com/view/57664/
 
@@ -262,11 +271,30 @@ static void setup_toolbar(){
 
 
 int main(int argc, char *argv[]){
+  
+  int socket_id;
+  char buffer[256];
+  int i;
+
+  socket_id = socket( AF_INET, SOCK_STREAM, 0);
+
+  struct sockaddr_in sock;
+  sock.sin_family = AF_INET;
+  sock.sin_port = htons(MY_PORT);
+  inet_aton("127.0.0.1", &(sock.sin_addr));
+  bind(socket_id, (struct sockaddr*)&sock, sizeof(sock));
+
+  i = connect(socket_id, (struct sockaddr*)&sock, sizeof(sock));
+  printf("<client> Connect returned: %d\n", i);
+  if ( i < 0 ){
+    printf("Error: %s\n", strerror(errno));
+  }
+  
   gtk_init (&argc, &argv);
   setup_window();
   setup_toolbar();
 	
-  do_drawing();
+  do_drawing(socket_id);
   gtk_widget_show_all(window);
   gtk_widget_show_all(toolbar);
   gtk_main();
