@@ -56,33 +56,33 @@ void serialize_gdkRectangle(gint buff[4], GdkRectangle* rect){
 
 /*Create a new surface of the appropriate size to store scribbles
  */
-static gboolean scribble_configure_event(GtkWidget *widget,
-					 GdkEventConfigure *event,
-					 gpointer data){
-  cairo_t *cr = NULL;
+gboolean scribble_configure_event(GtkWidget *widget,
+																	GdkEventConfigure *event,
+																	gpointer data){
+	cairo_t *cr = NULL;
      
-  if (surface)
-    cairo_surface_destroy(surface);
+	if (surface)
+		cairo_surface_destroy(surface);
     
-  surface = gdk_window_create_similar_surface(widget -> window,
-					      CAIRO_CONTENT_COLOR,
-					      widget -> allocation.width,
-					      widget -> allocation.height);
+	surface = gdk_window_create_similar_surface(widget -> window,
+																							CAIRO_CONTENT_COLOR,
+																							widget -> allocation.width,
+																							widget -> allocation.height);
      
-  /* Initialize the surface to white */
-  cr = cairo_create(surface);
-  cairo_set_source_rgb(cr, 1, 1, 1);
-  cairo_paint(cr);
-  cairo_destroy(cr);
+	/* Initialize the surface to white */
+	cr = cairo_create(surface);
+	cairo_set_source_rgb(cr, 1, 1, 1);
+	cairo_paint(cr);
+	cairo_destroy(cr);
      
-  return TRUE;
+	return TRUE;
 }
      
 /*Redraw the screen from the surface
  */
-static gboolean scribble_expose_event(GtkWidget *widget,
-				      GdkEventExpose *event,
-				      gpointer data){
+gboolean scribble_expose_event(GtkWidget *widget,
+															 GdkEventExpose *event,
+															 gpointer data){
   cairo_t *cr = NULL;
      
   cr = gdk_cairo_create(widget->window);
@@ -96,7 +96,7 @@ static gboolean scribble_expose_event(GtkWidget *widget,
      
 /*Draw a rectangle on the screen
  */
-static void draw_brush(GtkWidget *widget, gdouble x, gdouble y, int socket_id){
+void draw_brush(GtkWidget *widget, gdouble x, gdouble y, int* socket_id){
   GdkRectangle update_rect;
   //clear the buffer
   memset(&update_rect, 0, sizeof(GdkRectangle));
@@ -121,21 +121,21 @@ static void draw_brush(GtkWidget *widget, gdouble x, gdouble y, int socket_id){
 
   /*invalidate the affected region of the drawing area. */
   gdk_window_invalidate_rect(widget->window,
-			     &update_rect,
-			     FALSE);
+														 &update_rect,
+														 FALSE);
   //send data to server
   gint buff[4];
   guint colorbuff[4];
   serialize_gdkRectangle(buff, &update_rect);
   serialize_gdkColor(colorbuff, color);
-  write(socket_id, buff, sizeof(buff));
-  write(socket_id, colorbuff, sizeof(colorbuff));
+  write(*socket_id, buff, sizeof(buff));
+  write(*socket_id, colorbuff, sizeof(colorbuff));
 }
 
 
-static gboolean scribble_button_press_event(GtkWidget *widget,
-					    GdkEventButton *event,
-					    gpointer data){
+gboolean scribble_button_press_event(GtkWidget *widget,
+																		 GdkEventButton *event,
+																		 gpointer data){
   if (surface == NULL)
     return FALSE; 
     
@@ -146,9 +146,9 @@ static gboolean scribble_button_press_event(GtkWidget *widget,
 }
 
 
-static gboolean scribble_motion_notify_event(GtkWidget *widget,
-					     GdkEventMotion *event,
-					     gpointer data) {
+gboolean scribble_motion_notify_event(GtkWidget *widget,
+																			GdkEventMotion *event,
+																			gpointer data) {
   int x = 0;
   int y = 0;
   GdkModifierType state = 0;
@@ -165,7 +165,7 @@ static gboolean scribble_motion_notify_event(GtkWidget *widget,
 }
 
 
-static void do_drawing(int socket_id){
+void do_drawing(int* socket_id){
   GtkWidget* da = NULL;
 
   da = gtk_drawing_area_new();
@@ -174,32 +174,32 @@ static void do_drawing(int socket_id){
      
   /* Signals used to handle backing surface */
   g_signal_connect(da, "expose_event",
-		   G_CALLBACK(scribble_expose_event), NULL);
+									 G_CALLBACK(scribble_expose_event), NULL);
       
   g_signal_connect(da, "configure_event",
-		   G_CALLBACK(scribble_configure_event), NULL);
+									 G_CALLBACK(scribble_configure_event), NULL);
      
   /* Event signals */
   g_signal_connect(da, "motion-notify-event",
-		   G_CALLBACK(scribble_motion_notify_event), socket_id);
+									 G_CALLBACK(scribble_motion_notify_event), socket_id);
  
   g_signal_connect(da, "button-press-event",
-		   G_CALLBACK(scribble_button_press_event), socket_id);
+									 G_CALLBACK(scribble_button_press_event), socket_id);
   
   /* Ask to receive events the drawing area doesn't normally
    * subscribe to
    */
   gtk_widget_set_events(da, gtk_widget_get_events (da)
-			| GDK_LEAVE_NOTIFY_MASK
-			| GDK_BUTTON_PRESS_MASK
-			| GDK_POINTER_MOTION_MASK
-			| GDK_POINTER_MOTION_HINT_MASK); 
+												| GDK_LEAVE_NOTIFY_MASK
+												| GDK_BUTTON_PRESS_MASK
+												| GDK_POINTER_MOTION_MASK
+												| GDK_POINTER_MOTION_HINT_MASK); 
 }
 
      
 /*------------------------------- Window -----------------------------------*/
      
-static void close_window(void){
+void close_window(void){
   window = NULL;
   if (surface) 
     g_object_unref (surface);
@@ -208,7 +208,7 @@ static void close_window(void){
   gtk_main_quit();
 }
 
-static void setup_window(){
+void setup_window(){
   GdkCursor* cursor;
   
   if (!window){
@@ -220,7 +220,7 @@ static void setup_window(){
     gtk_container_set_border_width(GTK_CONTAINER(window), 10);
 
     g_signal_connect (G_OBJECT(window), "destroy",
-		      G_CALLBACK (close_window), NULL);
+											G_CALLBACK (close_window), NULL);
 
     //set initial action to draw
     cursor = gdk_cursor_new(GDK_PENCIL);
@@ -237,35 +237,35 @@ static void setup_window(){
 
 /*--------------------------------- Toolbar ------------------------------*/
 
-static void color_set_event(GtkColorButton* color_button, gpointer data){
+void color_set_event(GtkColorButton* color_button, gpointer data){
   if (color == NULL)
     color = (GdkColor*)malloc(sizeof(GdkColor*));
 	
   gtk_color_button_get_color(color_button, color);	
 }
 
-static void draw_button_click_event(GtkWidget* widget, gpointer data){
+void draw_button_click_event(GtkWidget* widget, gpointer data){
   gboolean active;
   GdkCursor* cursor;
 
   active = gtk_toggle_button_get_active((GtkToggleButton*)widget);
   
   if (!active){
-     cursor = gdk_cursor_new(GDK_PENCIL);
-     gdk_window_set_cursor(window->window, cursor);
+		cursor = gdk_cursor_new(GDK_PENCIL);
+		gdk_window_set_cursor(window->window, cursor);
   }
   else {
     gtk_toggle_button_set_active((GtkToggleButton*)widget, TRUE);
   }
 }
 
-static void erase_button_click_event(GtkWidget* widget, gpointer data){
+void erase_button_click_event(GtkWidget* widget, gpointer data){
   GdkCursor* cursor = gdk_cursor_new(GDK_IRON_CROSS);
   gdk_window_set_cursor(window->window, cursor);
 }
 
 
-static void setup_toolbar(){
+void setup_toolbar(){
   GtkWidget* table;
   GtkWidget* button;
   GdkColor* col;
@@ -279,7 +279,7 @@ static void setup_toolbar(){
     gtk_container_set_border_width(GTK_CONTAINER(toolbar), 20);
 	
     g_signal_connect(G_OBJECT(toolbar), "delete-event",
-		     G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+										 G_CALLBACK(gtk_widget_hide_on_delete), NULL);
 
     table = gtk_table_new(8, 2, TRUE);
     gtk_table_set_row_spacings(GTK_TABLE(table), 2);
@@ -290,20 +290,20 @@ static void setup_toolbar(){
     gtk_table_attach_defaults(GTK_TABLE(table), button, 0, 1, 0, 1);
 
     g_signal_connect(G_OBJECT(button), "clicked",
-		     G_CALLBACK(draw_button_click_event), NULL);
+										 G_CALLBACK(draw_button_click_event), NULL);
 		
     //Erasing
     button = gtk_toggle_button_new_with_label("Erase");
     gtk_table_attach_defaults(GTK_TABLE(table), button, 1, 2, 0, 1);
 
     g_signal_connect(G_OBJECT(button), "clicked",
-		     G_CALLBACK(erase_button_click_event), NULL);
+										 G_CALLBACK(erase_button_click_event), NULL);
 
     button = gtk_color_button_new();
     gtk_table_attach_defaults(GTK_TABLE(table), button, 0, 2, 6, 8);
 		
     g_signal_connect(G_OBJECT(button), "color-set",
-		     G_CALLBACK(color_set_event), NULL);
+										 G_CALLBACK(color_set_event), NULL);
 
     gtk_container_add(GTK_CONTAINER(toolbar), table);
   }
@@ -337,7 +337,7 @@ int main(int argc, char *argv[]){
   setup_window();
   setup_toolbar();
 	
-  do_drawing(socket_id);
+  do_drawing(&socket_id);
   gtk_widget_show_all(window);
   gtk_widget_show_all(toolbar);
   gtk_main();

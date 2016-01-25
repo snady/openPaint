@@ -13,8 +13,8 @@
 
 // CENTRAL DISPATCH SERVER
 int main(){
-  sizeof()
-  char buffer[256];
+  //sizeof()
+	char buffer[256];
   int clients[10];     //pids of children
   int socket_id, socket_client;
   int no_clients = 0;

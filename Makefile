@@ -1,7 +1,7 @@
-all: server client gui
+all: server client draw
 
 server: server.c
-	gcc -o server server.c
+	gcc -o server server.c `pkg-config --cflags --libs gtk+-2.0`
 
 client: client.c
 	gcc -o client client.c
@@ -15,4 +15,4 @@ draw: draw.c
 clean:
 	rm ./server
 	rm ./client
-	rm ./gui
+	rm ./draw
