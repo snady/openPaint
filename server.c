@@ -51,7 +51,7 @@ int main(){
       close(socket_id);
       break;
     }else{
-
+      while( read())
       close(socket_client);
       continue;
     }
