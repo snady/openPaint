@@ -428,18 +428,16 @@ int main(int argc, char *argv[]){
 	
 	while(1){
 		read_fds = master;
-		if(select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1){
-			perror("select");
-			exit(4);
-		}
-		for(i=0; i <= fdmax; i++ )
+		select(fdmax+1, &read_fds, NULL, NULL, NULL)
+		
+		for(i=0; i <= fdmax; i++ ){
 			if(FD_ISSET(i, &read_fds)){
         if(i==socket_id){
 				  read(socket_id, rd_buffer, 256);
           //unserialize data
-        }else{
-          gtk_main_iteration_do(TRUE);
-        }
+				}
 			}
-	}
+		}
+		gtk_main_iteration_do(TRUE);
+	}	
 }
