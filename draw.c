@@ -382,9 +382,9 @@ int main(int argc, char *argv[]){
 	
 	while(1){
 		gtk_main_iteration_do(TRUE);
-		read(socket_id, rectbuff, sizeof(rectbuff));
-		read(socket_id, colorbuff, sizeof(colorbuff));
-		draw_from_server(rectbuff, colorbuff);
+		//read(socket_id, rectbuff, sizeof(rectbuff));
+		//read(socket_id, colorbuff, sizeof(colorbuff));
+		//draw_from_server(rectbuff, colorbuff);
 	}
 	//gtk_main();
 	return 0;
