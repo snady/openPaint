@@ -2,9 +2,13 @@
 #define DRAW
 
 
-void serialize_gdkColor(guint buff[4], GdkColor* color);
+void* serialize_gdkColor(GdkColor* color);
 
-void serialize_gdkRectangle(gint buff[4], GdkRectangle* rect);
+void* serialize_gdkRectangle(GdkRectangle* rect);
+
+void unserialize_gdkColor(guint buff[4], void* read_buff);
+
+void unserialize_gdkRectangle(gint buff[4], void* read_buff);
 
 gboolean scribble_configure_event(GtkWidget *widget,
 																	GdkEventConfigure *event,

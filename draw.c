@@ -31,6 +31,7 @@ gdouble size;
 void* serialize_gdkColor(GdkColor* color){
 	guint cbuff[4];
 	void* buff;
+	char x = 'c';
 	
 	cbuff[0] = color -> pixel;
 	cbuff[1] = color -> red;
@@ -39,7 +40,7 @@ void* serialize_gdkColor(GdkColor* color){
 	
 	buff = (void*)malloc(sizeof(guint)*4+sizeof(char));
 	int offset;
-	memcpy(buff, 'c', sizeof(char));
+	memcpy(buff, &x, sizeof(char));
 	offset = sizeof(char);
 	memcpy(buff + offset, (void*)cbuff, sizeof(cbuff));
 }
@@ -47,15 +48,16 @@ void* serialize_gdkColor(GdkColor* color){
 void* serialize_gdkRectangle(GdkRectangle* rect){
 	gint rbuff[4];
 	void* buff;
+	char x = 'r';
 	
-	buff[0] = rect -> x;
-	buff[1] = rect -> y;
-	buff[2] = rect -> width;
-	buff[3] = rect -> height;
+	rbuff[0] = rect -> x;
+	rbuff[1] = rect -> y;
+	rbuff[2] = rect -> width;
+	rbuff[3] = rect -> height;
 
 	buff = (void*)malloc(sizeof(gint)*4+sizeof(char));
 	int offset;
-	memcpy(buff, 'r', sizeof(char));
+	memcpy(buff, &x, sizeof(char));
 	offset = sizeof(char);
 	memcpy(buff + offset, (void*)rbuff, sizeof(rbuff));
 }
@@ -67,7 +69,7 @@ void unserialize_gdkColor(guint buff[4], void* read_buff){
 
 void unserialize_gdkRectangle(gint buff[4], void* read_buff){
 	//assuming read_buff[1] is a char of size 1
-	memcpy(buff, read_buff+sizefof(char), sizeof(buff));
+	memcpy(buff, read_buff+sizeof(char), sizeof(buff));
 }
 
 
@@ -435,11 +437,26 @@ int main(int argc, char *argv[]){
 		for(i=0; i <= fdmax; i++ )
 			if(FD_ISSET(i, &read_fds)){
         if(i==socket_id){
-				  read(socket_id, rd_buffer, 256);
-          //unserialize data
-        }else{
-          gtk_main_iteration_do(TRUE);
-        }
+					guint cbuff[4];
+					gint rbuff[4];
+
+					//read twice, once for color, then for rect
+					read(socket_id, rd_buffer, 256);
+					if (rd_buffer[0] == 'c')
+						unserialize_gdkColor(cbuff, rd_buffer);
+					else
+						unserialize_gdkRectangle(rbuff, rd_buffer);
+
+					read(socket_id, rd_buffer, 256);
+					if (rd_buffer[0] == 'c')
+						unserialize_gdkColor(cbuff, rd_buffer);
+					else
+						unserialize_gdkRectangle(rbuff, rd_buffer);
+			
+					draw_from_server(rbuff, cbuff);
+				}else{
+					gtk_main_iteration_do(TRUE);
+				}
 			}
 	}
 }
