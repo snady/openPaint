@@ -75,5 +75,6 @@ void add_pipe( int pipefd[10][2] ){
       continue;
     }
     pipe(pipefd[i]);
-  }
+		break;
+	}
 }
