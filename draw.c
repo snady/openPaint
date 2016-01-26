@@ -439,3 +439,20 @@ int main(int argc, char *argv[]){
 	gtk_main();
 }
 
+void read_from_server( int socket_id, guint cbuff[4], gint cbuff[4] ){
+
+	//read twice, once for color, then for rect
+	read(socket_id, rd_buffer, 256);
+	if (rd_buffer[0] == 'c')
+		unserialize_gdkColor(cbuff, rd_buffer);
+	else
+		unserialize_gdkRectangle(rbuff, rd_buffer);
+
+	read(socket_id, rd_buffer, 256);
+	if (rd_buffer[0] == 'c')
+		unserialize_gdkColor(cbuff, rd_buffer);
+	else
+		unserialize_gdkRectangle(rbuff, rd_buffer);
+}
+
+
