@@ -28,31 +28,36 @@ gdouble size;
 
 /*----------------------------- Data Handling ------------------------------*/
 
-void serialize_gdkColor(guint buff[4], GdkColor* color){
-  buff[0] = color -> pixel;
-  buff[1] = color -> red;
-  buff[2] = color -> green;
-  buff[3] = color -> blue;
+void* serialize_gdkColor(GdkColor* color){
+	guint cbuff[4];
+	void* buff;
 	
-	/*
-		printf("Color\n");
-		int i;
-		for (i = 0; i < 4; i++)
-		printf("\tbuff[%d]: %d\n", i, buff[i]);
-	*/
+	cbuff[0] = color -> pixel;
+	cbuff[1] = color -> red;
+	cbuff[2] = color -> green;
+	cbuff[3] = color -> blue;
+	
+	buff = (void*)malloc(sizeof(guint)*4+sizeof(char));
+	int offset;
+	memcpy(buff, 'c', sizeof(char));
+	offset = sizeof(char);
+	memcpy(buff + offset, (void*)cbuff, sizeof(cbuff));
 }
 
-void serialize_gdkRectangle(gint buff[4], GdkRectangle* rect){
-  buff[0] = rect -> x;
-  buff[1] = rect -> y;
-  buff[2] = rect -> width;
-  buff[3] = rect -> height;
-  /*
-		printf("Rectangle\n");
-		int i;
-		for (i = 0; i < 4; i++)
-    printf("\tbuff[%d]: %d\n", i, buff[i]);
-  */
+void* serialize_gdkRectangle(GdkRectangle* rect){
+	gint rbuff[4];
+	void* buff;
+	
+	buff[0] = rect -> x;
+	buff[1] = rect -> y;
+	buff[2] = rect -> width;
+	buff[3] = rect -> height;
+
+	buff = (void*)malloc(sizeof(gint)*4+sizeof(char));
+	int offset;
+	memcpy(buff, 'r', sizeof(char));
+	offset = sizeof(char);
+	memcpy(buff + offset, (void*)rbuff, sizeof(rbuff));
 }
 
 
@@ -85,120 +90,118 @@ gboolean scribble_configure_event(GtkWidget *widget,
 /*Redraw the screen from the surface
  */
 gboolean scribble_expose_event(GtkWidget *widget,
-															 GdkEventExpose *event,
-															 gpointer data){
-  cairo_t *cr = NULL;
+																 GdkEventExpose *event,
+																 gpointer data){
+		cairo_t *cr = NULL;
      
-  cr = gdk_cairo_create(widget->window);
-  cairo_set_source_surface(cr, surface, 0, 0);
-  gdk_cairo_rectangle(cr, &event->area);
-  cairo_fill(cr);
-  cairo_destroy(cr);
+		cr = gdk_cairo_create(widget->window);
+		cairo_set_source_surface(cr, surface, 0, 0);
+		gdk_cairo_rectangle(cr, &event->area);
+		cairo_fill(cr);
+		cairo_destroy(cr);
      
-  return FALSE;
-}
-     
-/*Draw a rectangle on the screen
- */
-void draw_brush(GtkWidget *widget, gdouble x, gdouble y, int* socket_id){
-  GdkRectangle update_rect;
-  //clear the buffer
-  memset(&update_rect, 0, sizeof(GdkRectangle));
-     
-  cairo_t *cr = NULL;
-
-	if (!size)
-		size = 2;
-	
-	update_rect.x = x - size / 2;
-  update_rect.y = y - size / 2;
-  update_rect.width = size;
-  update_rect.height = size;
-     
-  /* Paint to the surface, where state is stored */
-  cr = cairo_create(surface);
-	
-  if (drawing)
-    gdk_cairo_set_source_color(cr, color);
-	
-	else {
-		GdkColor col;
-		gdk_color_parse("white", &col);
-		gdk_cairo_set_source_color(cr, &col);
+		return FALSE;
 	}
+     
+	/*Draw a rectangle on the screen
+	 */
+	void draw_brush(GtkWidget *widget, gdouble x, gdouble y, int* socket_id){
+		GdkRectangle update_rect;
+		//clear the buffer
+		memset(&update_rect, 0, sizeof(GdkRectangle));
+     
+		cairo_t *cr = NULL;
+
+		if (!size)
+			size = 2;
+	
+		update_rect.x = x - size / 2;
+		update_rect.y = y - size / 2;
+		update_rect.width = size;
+		update_rect.height = size;
+     
+		/* Paint to the surface, where state is stored */
+		cr = cairo_create(surface);
+	
+		if (drawing)
+			gdk_cairo_set_source_color(cr, color);
+	
+		else {
+			GdkColor col;
+			gdk_color_parse("white", &col);
+			gdk_cairo_set_source_color(cr, &col);
+		}
 		
 
-	gdk_cairo_rectangle(cr, &update_rect);
-  cairo_fill(cr);
-  cairo_destroy(cr);
+		gdk_cairo_rectangle(cr, &update_rect);
+		cairo_fill(cr);
+		cairo_destroy(cr);
 
-  /*invalidate the affected region of the drawing area. */
-  gdk_window_invalidate_rect(widget->window,
-														 &update_rect,
-														 FALSE);
-  //send data to server
-  gint buff[4];
-  guint colorbuff[4];
-  serialize_gdkRectangle(buff, &update_rect);
-  serialize_gdkColor(colorbuff, color);
-  write(*socket_id, buff, sizeof(buff));
-  write(*socket_id, colorbuff, sizeof(colorbuff));
-}
+		/*invalidate the affected region of the drawing area. */
+		gdk_window_invalidate_rect(widget->window,
+															 &update_rect,
+															 FALSE);
+		//send data to server
+		void* rbuff = serialize_gdkRectangle(&update_rect);
+		void* cbuff = serialize_gdkColor(color);
+		write(*socket_id, cbuff, sizeof(guint)*4+sizeof(char));
+		write(*socket_id, rbuff, sizeof(gint)*4+sizeof(char));
+	}
 
 
 gboolean scribble_button_press_event(GtkWidget *widget,
 																		 GdkEventButton *event,
 																		 gpointer data){
-  if (surface == NULL)
-    return FALSE; 
+	if (surface == NULL)
+		return FALSE; 
     
-  if (event->button == 1)
-    draw_brush(widget, event->x, event->y, data);
+	if (event->button == 1)
+		draw_brush(widget, event->x, event->y, data);
   
-  return TRUE;
+	return TRUE;
 }
 
 
 gboolean scribble_motion_notify_event(GtkWidget *widget,
 																			GdkEventMotion *event,
 																			gpointer data) {
-  int x = 0;
-  int y = 0;
-  GdkModifierType state = 0;
+	int x = 0;
+	int y = 0;
+	GdkModifierType state = 0;
      
-  if (surface == NULL)
-    return FALSE;
+	if (surface == NULL)
+		return FALSE;
     
-  gdk_window_get_pointer(event->window, &x, &y, &state);
+	gdk_window_get_pointer(event->window, &x, &y, &state);
      
-  if (state & GDK_BUTTON1_MASK)
-    draw_brush(widget, x, y, data);
+	if (state & GDK_BUTTON1_MASK)
+		draw_brush(widget, x, y, data);
     
-  return TRUE;
+	return TRUE;
 }
 
 
 void do_drawing(int* socket_id){
-  da = gtk_drawing_area_new();
-  gtk_widget_set_size_request(da, 500, 500);
-  gtk_container_add(GTK_CONTAINER (window), da);
+	da = gtk_drawing_area_new();
+	gtk_widget_set_size_request(da, 500, 500);
+	gtk_container_add(GTK_CONTAINER (window), da);
      
-  g_signal_connect(da, "expose_event",
+	g_signal_connect(da, "expose_event",
 									 G_CALLBACK(scribble_expose_event), NULL);
       
-  g_signal_connect(da, "configure_event",
+	g_signal_connect(da, "configure_event",
 									 G_CALLBACK(scribble_configure_event), NULL);
      
-  g_signal_connect(da, "motion-notify-event",
+	g_signal_connect(da, "motion-notify-event",
 									 G_CALLBACK(scribble_motion_notify_event), socket_id);
  
-  g_signal_connect(da, "button-press-event",
+	g_signal_connect(da, "button-press-event",
 									 G_CALLBACK(scribble_button_press_event), socket_id);
   
-  /* Ask to receive events the drawing area doesn't normally
-   * subscribe to
-   */
-  gtk_widget_set_events(da, gtk_widget_get_events (da)
+	/* Ask to receive events the drawing area doesn't normally
+	 * subscribe to
+	 */
+	gtk_widget_set_events(da, gtk_widget_get_events (da)
 												| GDK_LEAVE_NOTIFY_MASK
 												| GDK_BUTTON_PRESS_MASK
 												| GDK_POINTER_MOTION_MASK
@@ -209,34 +212,34 @@ void do_drawing(int* socket_id){
 /*------------------------------- Window -----------------------------------*/
      
 void close_window(){
-  window = NULL;
-  if (surface) 
-    g_object_unref (surface);
+	window = NULL;
+	if (surface) 
+		g_object_unref (surface);
  
-  surface = NULL;
-  gtk_widget_destroy(window);
+	surface = NULL;
+	gtk_widget_destroy(window);
 	exit(0);
 }
 
 void setup_window(){
-  GdkCursor* cursor;
+	GdkCursor* cursor;
   
-  if (!window){
-    //instantiate principal parent window
-    window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    gtk_window_set_title(GTK_WINDOW(window), "openPaint");
-    gtk_window_set_default_size(GTK_WINDOW(window), 500, 500);
-    gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
-    gtk_container_set_border_width(GTK_CONTAINER(window), 10);
+	if (!window){
+		//instantiate principal parent window
+		window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+		gtk_window_set_title(GTK_WINDOW(window), "openPaint");
+		gtk_window_set_default_size(GTK_WINDOW(window), 500, 500);
+		gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
+		gtk_container_set_border_width(GTK_CONTAINER(window), 10);
 
-    g_signal_connect (G_OBJECT(window), "destroy",
+		g_signal_connect (G_OBJECT(window), "destroy",
 											G_CALLBACK (close_window), NULL);
 
-    //set initial action to draw
-    //cursor = gdk_cursor_new(GDK_PENCIL);
-    //gdk_window_set_cursor(window->window, cursor);
+		//set initial action to draw
+		//cursor = gdk_cursor_new(GDK_PENCIL);
+		//gdk_window_set_cursor(window->window, cursor);
 
-    //set initial color to black
+		//set initial color to black
 		color = (GdkColor*)malloc(sizeof(GdkColor*));
 		color -> red = 255;
 		color -> blue = 255;
@@ -248,14 +251,14 @@ void setup_window(){
 /*--------------------------------- Toolbar ------------------------------*/
 
 void color_set_event(GtkColorButton* color_button, gpointer data){
-  if (color == NULL)
-    color = (GdkColor*)malloc(sizeof(GdkColor*));
+	if (color == NULL)
+		color = (GdkColor*)malloc(sizeof(GdkColor*));
 	
-  gtk_color_button_get_color(color_button, color);	
+	gtk_color_button_get_color(color_button, color);	
 }
 
 void draw_button_click_event(GtkWidget* widget, gpointer data){
-  GdkCursor* cursor;
+	GdkCursor* cursor;
 
 	cursor = gdk_cursor_new(GDK_PENCIL);
 	gdk_window_set_cursor(window->window, cursor);
@@ -367,78 +370,78 @@ void draw_from_server(gint rectbuff[4], guint colorbuff[4]){
 	free(col);
 }
 
-/*--------------------------------- Main ------------------------------*/
+	/*--------------------------------- Main ------------------------------*/
 
 
-int main(int argc, char *argv[]){
-	int socket_id;
-	char rd_buffer[256];
-	char wr_buffer[256];
-	int i; int fdmax;
-	struct sockaddr_in server_addr;
-	fd_set master;
-	fd_set read_fds;
+	int main(int argc, char *argv[]){
+		int socket_id;
+		char rd_buffer[256];
+		char wr_buffer[256];
+		int i; int fdmax;
+		struct sockaddr_in server_addr;
+		fd_set master;
+		fd_set read_fds;
 
-	guint colorbuff[4];
-	gint rectbuff[4];
+		guint colorbuff[4];
+		gint rectbuff[4];
 
-	socket_id = socket( AF_INET, SOCK_STREAM, 0);
+		socket_id = socket( AF_INET, SOCK_STREAM, 0);
 
 
-  struct sockaddr_in sock;
+		struct sockaddr_in sock;
   
-  sock.sin_family = AF_INET;
-  sock.sin_port = htons(MY_PORT);
-  inet_aton("127.0.0.1", &(sock.sin_addr));
-  bind(socket_id, (struct sockaddr*)&sock, sizeof(sock));
+		sock.sin_family = AF_INET;
+		sock.sin_port = htons(MY_PORT);
+		inet_aton("127.0.0.1", &(sock.sin_addr));
+		bind(socket_id, (struct sockaddr*)&sock, sizeof(sock));
 
-  i = connect(socket_id, (struct sockaddr*)&sock, sizeof(sock));
-  printf("<client> Connect returned: %d\n", i);
-  if ( i < 0 ){
-    printf("Error: %s\n", strerror(errno));
-  }
-  
-	FD_ZERO(&master);
-	FD_ZERO(&read_fds);
-	FD_SET(0, &master);
-	FD_SET(socket_id, &master);
-	fdmax = socket_id;
-
-  
-  gtk_init (&argc, &argv);
-  setup_window();
-  setup_toolbar();
-	
-	do_drawing(&socket_id);
-	gtk_widget_show_all(window);
-	gtk_widget_show_all(toolbar);
-
-	
-	//may encounter problems with this??
-	while(1){
-
-		//gtk_main_iteration_do(TRUE);
-		read_fds = master;
-		if(select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1){
-			perror("select");
-			exit(4);
+		i = connect(socket_id, (struct sockaddr*)&sock, sizeof(sock));
+		printf("<client> Connect returned: %d\n", i);
+		if ( i < 0 ){
+			printf("Error: %s\n", strerror(errno));
 		}
+  
+		FD_ZERO(&master);
+		FD_ZERO(&read_fds);
+		FD_SET(0, &master);
+		FD_SET(socket_id, &master);
+		fdmax = socket_id;
 
-		for(i=0; i <= fdmax; i++ )
-			if(FD_ISSET(i, &read_fds)){
-        if(i==socket_id){
-				  read(socket_id, rd_buffer, 256);
-        }else{
-          gtk_main_iteration_do(TRUE);
-        }
-	}
-	close(socket_id);
+  
+		gtk_init (&argc, &argv);
+		setup_window();
+		setup_toolbar();
 	
-	//	while(1){
-	//read(socket_id, rectbuff, sizeof(rectbuff));
-	//read(socket_id, colorbuff, sizeof(colorbuff));
-	//draw_from_server(rectbuff, colorbuff);
-	//}
-	//gtk_main();
-	return 0;
-}
+		do_drawing(&socket_id);
+		gtk_widget_show_all(window);
+		gtk_widget_show_all(toolbar);
+
+	
+		//may encounter problems with this??
+		while(1){
+
+			//gtk_main_iteration_do(TRUE);
+			read_fds = master;
+			if(select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1){
+				perror("select");
+				exit(4);
+			}
+
+			for(i=0; i <= fdmax; i++ )
+				if(FD_ISSET(i, &read_fds)){
+					if(i==socket_id){
+						read(socket_id, rd_buffer, 256);
+					}else{
+						gtk_main_iteration_do(TRUE);
+					}
+				}
+			close(socket_id);
+	
+			//	while(1){
+			//read(socket_id, rectbuff, sizeof(rectbuff));
+			//read(socket_id, colorbuff, sizeof(colorbuff));
+			//draw_from_server(rectbuff, colorbuff);
+			//}
+			//gtk_main();
+			return 0;
+		}
