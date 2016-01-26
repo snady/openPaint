@@ -51,7 +51,7 @@ int main(){
       close(socket_id);
       break;
     }else{
-
+      while( read())
       close(socket_client);
       continue;
     }
@@ -75,4 +75,5 @@ void add_pipe( int pipefd[10][2] ){
       continue;
     }
     pipe(pipefd[i]);
+  }
 }
