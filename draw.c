@@ -412,7 +412,8 @@ int main(int argc, char *argv[]){
 	if ( i < 0 ){
 		printf("Error: %s\n", strerror(errno));
 	}
-  
+
+	printf("before\n");
 	FD_ZERO(&master);
 	FD_ZERO(&read_fds);
 	FD_SET(0, &master);
@@ -427,6 +428,7 @@ int main(int argc, char *argv[]){
 	do_drawing(&socket_id);
 	gtk_widget_show_all(window);
 	gtk_widget_show_all(toolbar);
+	printf("after\n");
 	
 	while(1){
 		read_fds = master;
@@ -434,9 +436,9 @@ int main(int argc, char *argv[]){
 			perror("select");
 			exit(4);
 		}
-		for(i=0; i <= fdmax; i++ )
+		for(i=0; i <= fdmax; i++ ){
 			if(FD_ISSET(i, &read_fds)){
-        if(i==socket_id){
+				if(i==socket_id){
 					guint cbuff[4];
 					gint rbuff[4];
 
@@ -454,9 +456,8 @@ int main(int argc, char *argv[]){
 						unserialize_gdkRectangle(rbuff, rd_buffer);
 			
 					draw_from_server(rbuff, cbuff);
-				}else{
-					gtk_main_iteration_do(TRUE);
-				}
+				} 
 			}
+		}
 	}
 }
