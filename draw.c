@@ -374,8 +374,7 @@ int main(int argc, char *argv[]){
 	int socket_id;
 	char rd_buffer[256];
 	char wr_buffer[256];
-	int i;
-	int fdmax;
+	int i; int fdmax;
 	struct sockaddr_in server_addr;
 	fd_set master;
 	fd_set read_fds;
@@ -405,6 +404,7 @@ int main(int argc, char *argv[]){
 	FD_SET(socket_id, &master);
 	fdmax = socket_id;
 
+  
   gtk_init (&argc, &argv);
   setup_window();
   setup_toolbar();
@@ -416,15 +416,21 @@ int main(int argc, char *argv[]){
 	
 	//may encounter problems with this??
 	while(1){
-		gtk_main_iteration_do(TRUE);
+
+		//gtk_main_iteration_do(TRUE);
 		read_fds = master;
 		if(select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1){
 			perror("select");
 			exit(4);
 		}
+
 		for(i=0; i <= fdmax; i++ )
-			if(FD_ISSET(i, &read_fds))
-				read(socket_id, rd_buffer, 256);
+			if(FD_ISSET(i, &read_fds)){
+        if(i==socket_id){
+				  read(socket_id, rd_buffer, 256);
+        }else{
+          gtk_main_iteration_do(TRUE);
+        }
 	}
 	close(socket_id);
 	
