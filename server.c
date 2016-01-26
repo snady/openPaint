@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <gtk/gtk.h>
 #include <signal.h>
 
@@ -15,9 +16,11 @@
 int main(){
   //sizeof()
 	char buffer[256];
-  int clients[10];     //pids of children
+  int pipefd[10][2];     //pids of children
   int socket_id, socket_client;
   int no_clients = 0;
+
+  memset(pipefd, 0, sizeof(pipefd));
 
   socket_id = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -34,6 +37,8 @@ int main(){
   while(1){
     socket_client = accept(socket_id, NULL, NULL);
     printf("<server> Connected: %d\n", socket_client);
+
+    add_pipe(pipefd);
 
     int chpid = fork();
         
@@ -53,11 +58,21 @@ int main(){
   }
   return 0;
 }
-/*
-void send_data( int* clients ){
-  int i = 0;
-  while ( clients[i] )
-    write(clients[i], "Data Received\n", 255);
-    printf()
+
+void send_data( int pipefd[10][2], char* buffer ){
+  int i;
+  for( i = 0; i < 10; i++ ){
+    if( pipefd[i] ){ //might need to change this conditional
+      write( pipefd[i][PIPE_WR], buffer, 255 );
+    }
+  }
 }
-*/
+
+void add_pipe( int pipefd[10][2] ){
+  int i;
+  for( i = 0; i < 10; i++){
+    if( pipefd[i] ){
+      continue;
+    }
+    pipe(pipefd[i]);
+}
