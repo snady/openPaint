@@ -60,6 +60,16 @@ void* serialize_gdkRectangle(GdkRectangle* rect){
 	memcpy(buff + offset, (void*)rbuff, sizeof(rbuff));
 }
 
+void unserialize_gdkColor(guint buff[4], void* read_buff){
+  //assuming read_buff[1] is a char of size 1
+  memcpy(buff, read_buff+sizeof(char), sizeof(buff));
+}
+
+void unserialize_gdkRectangle(gint buff[4], void* read_buff){
+	//assuming read_buff[1] is a char of size 1
+	memcpy(buff, read_buff+sizefof(char), sizeof(buff));
+}
+
 
 /*----------------------------- Drawing Area ------------------------------*/
 
@@ -90,63 +100,63 @@ gboolean scribble_configure_event(GtkWidget *widget,
 /*Redraw the screen from the surface
  */
 gboolean scribble_expose_event(GtkWidget *widget,
-																 GdkEventExpose *event,
-																 gpointer data){
-		cairo_t *cr = NULL;
+															 GdkEventExpose *event,
+															 gpointer data){
+	cairo_t *cr = NULL;
      
-		cr = gdk_cairo_create(widget->window);
-		cairo_set_source_surface(cr, surface, 0, 0);
-		gdk_cairo_rectangle(cr, &event->area);
-		cairo_fill(cr);
-		cairo_destroy(cr);
+	cr = gdk_cairo_create(widget->window);
+	cairo_set_source_surface(cr, surface, 0, 0);
+	gdk_cairo_rectangle(cr, &event->area);
+	cairo_fill(cr);
+	cairo_destroy(cr);
      
-		return FALSE;
-	}
+	return FALSE;
+}
      
-	/*Draw a rectangle on the screen
-	 */
-	void draw_brush(GtkWidget *widget, gdouble x, gdouble y, int* socket_id){
-		GdkRectangle update_rect;
-		//clear the buffer
-		memset(&update_rect, 0, sizeof(GdkRectangle));
+/*Draw a rectangle on the screen
+ */
+void draw_brush(GtkWidget *widget, gdouble x, gdouble y, int* socket_id){
+	GdkRectangle update_rect;
+	//clear the buffer
+	memset(&update_rect, 0, sizeof(GdkRectangle));
      
-		cairo_t *cr = NULL;
+	cairo_t *cr = NULL;
 
-		if (!size)
-			size = 2;
+	if (!size)
+		size = 2;
 	
-		update_rect.x = x - size / 2;
-		update_rect.y = y - size / 2;
-		update_rect.width = size;
-		update_rect.height = size;
+	update_rect.x = x - size / 2;
+	update_rect.y = y - size / 2;
+	update_rect.width = size;
+	update_rect.height = size;
      
-		/* Paint to the surface, where state is stored */
-		cr = cairo_create(surface);
+	/* Paint to the surface, where state is stored */
+	cr = cairo_create(surface);
 	
-		if (drawing)
-			gdk_cairo_set_source_color(cr, color);
+	if (drawing)
+		gdk_cairo_set_source_color(cr, color);
 	
-		else {
-			GdkColor col;
-			gdk_color_parse("white", &col);
-			gdk_cairo_set_source_color(cr, &col);
-		}
+	else {
+		GdkColor col;
+		gdk_color_parse("white", &col);
+		gdk_cairo_set_source_color(cr, &col);
+	}
 		
 
-		gdk_cairo_rectangle(cr, &update_rect);
-		cairo_fill(cr);
-		cairo_destroy(cr);
+	gdk_cairo_rectangle(cr, &update_rect);
+	cairo_fill(cr);
+	cairo_destroy(cr);
 
-		/*invalidate the affected region of the drawing area. */
-		gdk_window_invalidate_rect(widget->window,
-															 &update_rect,
-															 FALSE);
-		//send data to server
-		void* rbuff = serialize_gdkRectangle(&update_rect);
-		void* cbuff = serialize_gdkColor(color);
-		write(*socket_id, cbuff, sizeof(guint)*4+sizeof(char));
-		write(*socket_id, rbuff, sizeof(gint)*4+sizeof(char));
-	}
+	/*invalidate the affected region of the drawing area. */
+	gdk_window_invalidate_rect(widget->window,
+														 &update_rect,
+														 FALSE);
+	//send data to server
+	void* rbuff = serialize_gdkRectangle(&update_rect);
+	void* cbuff = serialize_gdkColor(color);
+	write(*socket_id, cbuff, sizeof(guint)*4+sizeof(char));
+	write(*socket_id, rbuff, sizeof(gint)*4+sizeof(char));
+}
 
 
 gboolean scribble_button_press_event(GtkWidget *widget,
@@ -370,78 +380,66 @@ void draw_from_server(gint rectbuff[4], guint colorbuff[4]){
 	free(col);
 }
 
-	/*--------------------------------- Main ------------------------------*/
+/*--------------------------------- Main ------------------------------*/
 
 
-	int main(int argc, char *argv[]){
-		int socket_id;
-		char rd_buffer[256];
-		char wr_buffer[256];
-		int i; int fdmax;
-		struct sockaddr_in server_addr;
-		fd_set master;
-		fd_set read_fds;
+int main(int argc, char *argv[]){
+	int socket_id;
+	char rd_buffer[256];
+	char wr_buffer[256];
+	int i; int fdmax;
+	struct sockaddr_in server_addr;
+	fd_set master;
+	fd_set read_fds;
 
-		guint colorbuff[4];
-		gint rectbuff[4];
+	guint colorbuff[4];
+	gint rectbuff[4];
 
-		socket_id = socket( AF_INET, SOCK_STREAM, 0);
+	socket_id = socket( AF_INET, SOCK_STREAM, 0);
 
 
-		struct sockaddr_in sock;
+	struct sockaddr_in sock;
   
-		sock.sin_family = AF_INET;
-		sock.sin_port = htons(MY_PORT);
-		inet_aton("127.0.0.1", &(sock.sin_addr));
-		bind(socket_id, (struct sockaddr*)&sock, sizeof(sock));
+	sock.sin_family = AF_INET;
+	sock.sin_port = htons(MY_PORT);
+	inet_aton("127.0.0.1", &(sock.sin_addr));
+	bind(socket_id, (struct sockaddr*)&sock, sizeof(sock));
 
-		i = connect(socket_id, (struct sockaddr*)&sock, sizeof(sock));
-		printf("<client> Connect returned: %d\n", i);
-		if ( i < 0 ){
-			printf("Error: %s\n", strerror(errno));
+	i = connect(socket_id, (struct sockaddr*)&sock, sizeof(sock));
+	printf("<client> Connect returned: %d\n", i);
+	if ( i < 0 ){
+		printf("Error: %s\n", strerror(errno));
+	}
+  
+	FD_ZERO(&master);
+	FD_ZERO(&read_fds);
+	FD_SET(0, &master);
+	FD_SET(socket_id, &master);
+	fdmax = socket_id;
+
+  
+	gtk_init (&argc, &argv);
+	setup_window();
+	setup_toolbar();
+	
+	do_drawing(&socket_id);
+	gtk_widget_show_all(window);
+	gtk_widget_show_all(toolbar);
+	
+	while(1){
+		read_fds = master;
+		if(select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1){
+			perror("select");
+			exit(4);
 		}
-  
-		FD_ZERO(&master);
-		FD_ZERO(&read_fds);
-		FD_SET(0, &master);
-		FD_SET(socket_id, &master);
-		fdmax = socket_id;
-
-  
-		gtk_init (&argc, &argv);
-		setup_window();
-		setup_toolbar();
-	
-		do_drawing(&socket_id);
-		gtk_widget_show_all(window);
-		gtk_widget_show_all(toolbar);
-
-	
-		//may encounter problems with this??
-		while(1){
-
-			//gtk_main_iteration_do(TRUE);
-			read_fds = master;
-			if(select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1){
-				perror("select");
-				exit(4);
+		for(i=0; i <= fdmax; i++ )
+			if(FD_ISSET(i, &read_fds)){
+        if(i==socket_id){
+				  read(socket_id, rd_buffer, 256);
+          //unserialize data
+        }else{
+          gtk_main_iteration_do(TRUE);
+        }
 			}
-
-			for(i=0; i <= fdmax; i++ )
-				if(FD_ISSET(i, &read_fds)){
-					if(i==socket_id){
-						read(socket_id, rd_buffer, 256);
-					}else{
-						gtk_main_iteration_do(TRUE);
-					}
-				}
-			close(socket_id);
-	
-			//	while(1){
-			//read(socket_id, rectbuff, sizeof(rectbuff));
-			//read(socket_id, colorbuff, sizeof(colorbuff));
-			//draw_from_server(rectbuff, colorbuff);
-			//}
-			//gtk_main();
-			return 0;
-		}
+	}
+}
