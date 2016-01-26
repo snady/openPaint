@@ -10,6 +10,8 @@ void unserialize_gdkColor(guint buff[4], void* read_buff);
 
 void unserialize_gdkRectangle(gint buff[4], void* read_buff);
 
+void read_from_server(gpointer data, gint source, GdkInputCondition condition);
+
 gboolean scribble_configure_event(GtkWidget *widget,
 																	GdkEventConfigure *event,
 																	gpointer data);

@@ -11,10 +11,12 @@
 #define PORT 8003
 #define BUFSIZE 1024
 
-void send_to_all(int j, int i, int sockfd, int nbytes_recvd, char *recv_buf, fd_set *master){
+void send_to_all(int j, int i, int sockfd, int nbytes_recvd, void *recv_buf, fd_set *master){
 	if (FD_ISSET(j, master)){
 		if (j != sockfd && j != i) {
+			printf("Read: %d\n", *((int*)recv_buf));
 			write(j, recv_buf, nbytes_recvd);
+			printf("Wrote it\n");
 		}
 	}
 }
@@ -22,10 +24,11 @@ void send_to_all(int j, int i, int sockfd, int nbytes_recvd, char *recv_buf, fd_
 void send_recv(int i, fd_set *master, int sockfd, int fdmax){
 
 	int nbytes_recvd, j;
-	char recv_buf[BUFSIZE], buf[BUFSIZE];
+	void recv_buf[BUFSIZE], buf[BUFSIZE];
 	
 	nbytes_recvd = read(i, recv_buf, BUFSIZE);
-	printf("Read: %s\n", recv_buf); // data doens't rly matter here, just as long as it'sbeing sent
+	printf("Read: %d\n", *((int*)recv_buf));
+	//printf("Read: %s\n", recv_buf); 
 	close(i);
 	FD_CLR(i, master);
 	for(j = 0; j <= fdmax; j++){
@@ -49,6 +52,8 @@ void connection_accept(fd_set *master, int *fdmax, int sockfd, struct sockaddr_i
 void connect_request(int *sockfd, struct sockaddr_in *my_addr){
 		
 	*sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+	printf("<Select>Socket id: %d\n", *sockfd);
 		
 	my_addr->sin_family = AF_INET;
 	my_addr->sin_port = htons(PORT);

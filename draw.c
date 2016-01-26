@@ -39,10 +39,10 @@ void* serialize_gdkColor(GdkColor* color){
 	cbuff[3] = color -> blue;
 	
 	buff = (void*)malloc(sizeof(guint)*4+sizeof(char));
-	int offset;
 	memcpy(buff, &x, sizeof(char));
-	offset = sizeof(char);
-	memcpy(buff + offset, (void*)cbuff, sizeof(cbuff));
+	memcpy(buff + sizeof(char), (void*)cbuff, sizeof(cbuff));
+
+	return buff;
 }
 
 void* serialize_gdkRectangle(GdkRectangle* rect){
@@ -56,20 +56,20 @@ void* serialize_gdkRectangle(GdkRectangle* rect){
 	rbuff[3] = rect -> height;
 
 	buff = (void*)malloc(sizeof(gint)*4+sizeof(char));
-	int offset;
 	memcpy(buff, &x, sizeof(char));
-	offset = sizeof(char);
-	memcpy(buff + offset, (void*)rbuff, sizeof(rbuff));
+	memcpy(buff + sizeof(char), (void*)rbuff, sizeof(rbuff));
+
+	return buff;
 }
 
 void unserialize_gdkColor(guint buff[4], void* read_buff){
-  //assuming read_buff[1] is a char of size 1
-  memcpy(buff, read_buff+sizeof(char), sizeof(buff));
+	void* rd = read_buff;
+	memcpy(buff, rd+sizeof(char), sizeof(buff));
 }
 
 void unserialize_gdkRectangle(gint buff[4], void* read_buff){
-	//assuming read_buff[1] is a char of size 1
-	memcpy(buff, read_buff+sizeof(char), sizeof(buff));
+	void* rd = read_buff;
+	memcpy(buff, rd+sizeof(char), sizeof(buff));
 }
 
 
@@ -119,7 +119,6 @@ gboolean scribble_expose_event(GtkWidget *widget,
  */
 void draw_brush(GtkWidget *widget, gdouble x, gdouble y, int* socket_id){
 	GdkRectangle update_rect;
-	//clear the buffer
 	memset(&update_rect, 0, sizeof(GdkRectangle));
      
 	cairo_t *cr = NULL;
@@ -149,15 +148,17 @@ void draw_brush(GtkWidget *widget, gdouble x, gdouble y, int* socket_id){
 	cairo_fill(cr);
 	cairo_destroy(cr);
 
+	void* rbuff = serialize_gdkRectangle(&update_rect);
+	void* cbuff = serialize_gdkColor(color);
+	
+	write(*socket_id, cbuff, sizeof(guint)*4+sizeof(char));
+	write(*socket_id , rbuff, sizeof(gint)*4+sizeof(char));
+
+
 	/*invalidate the affected region of the drawing area. */
 	gdk_window_invalidate_rect(widget->window,
 														 &update_rect,
 														 FALSE);
-	//send data to server
-	void* rbuff = serialize_gdkRectangle(&update_rect);
-	void* cbuff = serialize_gdkColor(color);
-	write(*socket_id, cbuff, sizeof(guint)*4+sizeof(char));
-	write(*socket_id, rbuff, sizeof(gint)*4+sizeof(char));
 }
 
 
@@ -229,8 +230,7 @@ void close_window(){
 		g_object_unref (surface);
  
 	surface = NULL;
-	gtk_widget_destroy(window);
-	exit(0);
+	gtk_main_quit();
 }
 
 void setup_window(){
@@ -351,7 +351,7 @@ void setup_toolbar(){
 /*-------------------------------- Server Data -------------------------------*/
 void draw_from_server(gint rectbuff[4], guint colorbuff[4]){
 	GdkRectangle update_rect;
-	GdkColor* col;
+	GdkColor col;
 	cairo_t* cr = NULL;
 
 	/* Create and set GdkRectangle values based on rectbuff */
@@ -362,15 +362,15 @@ void draw_from_server(gint rectbuff[4], guint colorbuff[4]){
 	update_rect.height = rectbuff[3];
 
 	/* Create and set GdkColor values based on colorbuff */
-	col = (GdkColor*)malloc(sizeof(GdkColor*));
-	col -> pixel = colorbuff[0];
-	col -> red = colorbuff[1];
-	col -> green = colorbuff[2];
-	col -> blue = colorbuff[3];
+	memset(&col, 0, sizeof(GdkColor));
+	col.pixel = colorbuff[0];
+	col.red = colorbuff[1];
+	col.green = colorbuff[2];
+	col.blue = colorbuff[3];
 
 	cr = cairo_create(surface);
 
-	gdk_cairo_set_source_color(cr, col);
+	gdk_cairo_set_source_color(cr, &col);
 
 	gdk_cairo_rectangle(cr, &update_rect);
 	cairo_fill(cr);
@@ -379,27 +379,40 @@ void draw_from_server(gint rectbuff[4], guint colorbuff[4]){
 	gdk_window_invalidate_rect(da -> window,
 														 &update_rect,
 														 FALSE);
-	free(col);
 }
 
 /*--------------------------------- Main ------------------------------*/
 
+void read_from_server(gpointer data, gint source, GdkInputCondition condition){
+	guint cbuff[4];
+	gint rbuff[4];
+	char rd_buffer[256];
+	
+	read(source, rd_buffer, 256);
+	//printf("%s\n", rd_buffer);
+	if (rd_buffer[0] == 'c')
+		unserialize_gdkColor(cbuff, rd_buffer);
+	else
+		unserialize_gdkRectangle(rbuff, rd_buffer);
+
+	read(source, rd_buffer, 256);
+	//printf("%s\n", rd_buffer);
+	if (rd_buffer[0] == 'c')
+		unserialize_gdkColor(cbuff, rd_buffer);
+	else
+		unserialize_gdkRectangle(rbuff, rd_buffer);
+
+	draw_from_server(rbuff, cbuff);
+}
+
+
 
 int main(int argc, char *argv[]){
 	int socket_id;
-	char rd_buffer[256];
-	char wr_buffer[256];
-	int i; int fdmax;
-	struct sockaddr_in server_addr;
-	fd_set master;
-	fd_set read_fds;
-
-	guint colorbuff[4];
-	gint rectbuff[4];
+	int i;
 
 	socket_id = socket( AF_INET, SOCK_STREAM, 0);
-
-
+	printf("<draw>Socket id: %d\n", socket_id);
 	struct sockaddr_in sock;
   
 	sock.sin_family = AF_INET;
@@ -413,14 +426,6 @@ int main(int argc, char *argv[]){
 		printf("Error: %s\n", strerror(errno));
 	}
 
-	printf("before\n");
-	FD_ZERO(&master);
-	FD_ZERO(&read_fds);
-	FD_SET(0, &master);
-	FD_SET(socket_id, &master);
-	fdmax = socket_id;
-
-  
 	gtk_init (&argc, &argv);
 	setup_window();
 	setup_toolbar();
@@ -428,35 +433,9 @@ int main(int argc, char *argv[]){
 	do_drawing(&socket_id);
 	gtk_widget_show_all(window);
 	gtk_widget_show_all(toolbar);
-	printf("after\n");
-	
-	while(1){
-		read_fds = master;
-		select(fdmax+1, &read_fds, NULL, NULL, NULL)
 
-		for(i=0; i <= fdmax; i++ ){
-			if(FD_ISSET(i, &read_fds)){
-				if(i==socket_id){
-					guint cbuff[4];
-					gint rbuff[4];
+	gdk_input_add(socket_id, GDK_INPUT_READ, read_from_server, NULL);
 
-					//read twice, once for color, then for rect
-					read(socket_id, rd_buffer, 256);
-					if (rd_buffer[0] == 'c')
-						unserialize_gdkColor(cbuff, rd_buffer);
-					else
-						unserialize_gdkRectangle(rbuff, rd_buffer);
-
-					read(socket_id, rd_buffer, 256);
-					if (rd_buffer[0] == 'c')
-						unserialize_gdkColor(cbuff, rd_buffer);
-					else
-						unserialize_gdkRectangle(rbuff, rd_buffer);
-			
-					draw_from_server(rbuff, cbuff);
-				} 
-			}
-		}
-		gtk_main_iteration_do(TRUE);
-	}
+	gtk_main();
 }
+
