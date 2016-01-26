@@ -28,49 +28,34 @@ gdouble size;
 
 /*----------------------------- Data Handling ------------------------------*/
 
-void* serialize_gdkColor(GdkColor* color){
-	guint cbuff[4];
-	void* buff;
-	char x = 'c';
-	
-	cbuff[0] = color -> pixel;
-	cbuff[1] = color -> red;
-	cbuff[2] = color -> green;
-	cbuff[3] = color -> blue;
-	
-	buff = (void*)malloc(sizeof(guint)*4+sizeof(char));
-	memcpy(buff, &x, sizeof(char));
-	memcpy(buff + sizeof(char), (void*)cbuff, sizeof(cbuff));
-
-	return buff;
-}
-
-void* serialize_gdkRectangle(GdkRectangle* rect){
+void* serialize_data(GdkRectangle* rect, GdkColor* color){
 	gint rbuff[4];
-	void* buff;
-	char x = 'r';
-	
+	guint cbuff[4];
+	int size = sizeof(gint)*4 + sizeof(guint)*4;
+	void* buff = (void*)malloc(size);
+
 	rbuff[0] = rect -> x;
 	rbuff[1] = rect -> y;
 	rbuff[2] = rect -> width;
 	rbuff[3] = rect -> height;
 
-	buff = (void*)malloc(sizeof(gint)*4+sizeof(char));
-	memcpy(buff, &x, sizeof(char));
-	memcpy(buff + sizeof(char), (void*)rbuff, sizeof(rbuff));
+	cbuff[0] = color -> pixel;
+	cbuff[1] = color -> red;
+	cbuff[2] = color -> green;
+	cbuff[3] = color -> blue;
+
+	memcpy(buff, (void*)rbuff, sizeof(rbuff));
+	memcpy(buff + sizeof(rbuff), (void*)cbuff, sizeof(cbuff));
 
 	return buff;
 }
 
-void unserialize_gdkColor(guint buff[4], void* read_buff){
-	void* rd = read_buff;
-	memcpy(buff, rd+sizeof(char), sizeof(buff));
+void unserialize_data(gint rbuff[4], guint cbuff[4], void* read_buff){
+	void* pos = read_buff;
+	memcpy(rbuff, pos, sizeof(rbuff));
+	memcpy(cbuff, pos + sizeof(rbuff), sizeof(cbuff));
 }
 
-void unserialize_gdkRectangle(gint buff[4], void* read_buff){
-	void* rd = read_buff;
-	memcpy(buff, rd+sizeof(char), sizeof(buff));
-}
 
 
 /*----------------------------- Drawing Area ------------------------------*/
@@ -109,57 +94,55 @@ gboolean scribble_expose_event(GtkWidget *widget,
 	cr = gdk_cairo_create(widget->window);
 	cairo_set_source_surface(cr, surface, 0, 0);
 	gdk_cairo_rectangle(cr, &event->area);
-	cairo_fill(cr);
-	cairo_destroy(cr);
+		cairo_fill(cr);
+		cairo_destroy(cr);
      
-	return FALSE;
-}
-     
-/*Draw a rectangle on the screen
- */
-void draw_brush(GtkWidget *widget, gdouble x, gdouble y, int* socket_id){
-	GdkRectangle update_rect;
-	memset(&update_rect, 0, sizeof(GdkRectangle));
-     
-	cairo_t *cr = NULL;
-
-	if (!size)
-		size = 2;
-	
-	update_rect.x = x - size / 2;
-	update_rect.y = y - size / 2;
-	update_rect.width = size;
-	update_rect.height = size;
-     
-	/* Paint to the surface, where state is stored */
-	cr = cairo_create(surface);
-	
-	if (drawing)
-		gdk_cairo_set_source_color(cr, color);
-	
-	else {
-		GdkColor col;
-		gdk_color_parse("white", &col);
-		gdk_cairo_set_source_color(cr, &col);
+		return FALSE;
 	}
-		
+     
+	/*Draw a rectangle on the screen
+	 */
+	void draw_brush(GtkWidget *widget, gdouble x, gdouble y, int* socket_id){
+		GdkRectangle update_rect;
+		memset(&update_rect, 0, sizeof(GdkRectangle));
+     
+		cairo_t *cr = NULL;
 
-	gdk_cairo_rectangle(cr, &update_rect);
-	cairo_fill(cr);
-	cairo_destroy(cr);
-
-	void* rbuff = serialize_gdkRectangle(&update_rect);
-	void* cbuff = serialize_gdkColor(color);
+		if (!size)
+			size = 2;
 	
-	write(*socket_id, cbuff, sizeof(guint)*4+sizeof(char));
-	write(*socket_id , rbuff, sizeof(gint)*4+sizeof(char));
+		update_rect.x = x - size / 2;
+		update_rect.y = y - size / 2;
+		update_rect.width = size;
+		update_rect.height = size;
+     
+		/* Paint to the surface, where state is stored */
+		cr = cairo_create(surface);
+	
+		if (drawing)
+			gdk_cairo_set_source_color(cr, color);
+	
+		else {
+			GdkColor col;
+			gdk_color_parse("white", &col);
+			gdk_cairo_set_source_color(cr, &col);
+		}
 
+		gdk_cairo_rectangle(cr, &update_rect);
+		cairo_fill(cr);
+		cairo_destroy(cr);
 
-	/*invalidate the affected region of the drawing area. */
-	gdk_window_invalidate_rect(widget->window,
-														 &update_rect,
-														 FALSE);
-}
+		void* buff = serialize_data(&update_rect, color);
+	
+		write(*socket_id, buff, sizeof(guint)*4+sizeof(gint)*4);
+
+		free(buff);
+
+		/*invalidate the affected region of the drawing area. */
+		gdk_window_invalidate_rect(widget->window,
+															 &update_rect,
+															 FALSE);
+	}
 
 
 gboolean scribble_button_press_event(GtkWidget *widget,
@@ -282,129 +265,118 @@ void erase_button_click_event(GtkWidget* widget, gpointer data){
 	GdkCursor* cursor;
 	
 	cursor = gdk_cursor_new(GDK_IRON_CROSS);
-	gdk_window_set_cursor(window->window, cursor);
+		gdk_window_set_cursor(window->window, cursor);
 
-	drawing = FALSE;
-}
+		drawing = FALSE;
+	}
 
 
-void scale_change_event(GtkWidget* widget, gpointer data){
-	GtkAdjustment* range;
+	void scale_change_event(GtkWidget* widget, gpointer data){
+		GtkAdjustment* range;
 	
-	range = gtk_range_get_adjustment(GTK_RANGE(widget));
-	size = gtk_adjustment_get_value(range);
-}
+		range = gtk_range_get_adjustment(GTK_RANGE(widget));
+		size = gtk_adjustment_get_value(range);
+	}
 
-void setup_toolbar(){
-	GtkWidget* table;
-	GtkWidget* button;
-	GtkWidget* hscale;
-	GtkAdjustment* range;
-	GdkColor* col;
+	void setup_toolbar(){
+		GtkWidget* table;
+		GtkWidget* button;
+		GtkWidget* hscale;
+		GtkAdjustment* range;
+		GdkColor* col;
 
-	if (!toolbar){
-		toolbar = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-		gtk_window_set_title(GTK_WINDOW(toolbar), "Toolbar");
-		gtk_window_set_default_size(GTK_WINDOW(toolbar), 200, 500);
-		gtk_widget_set_uposition(toolbar, 240, 260);
-		gtk_container_set_border_width(GTK_CONTAINER(toolbar), 20);
+		if (!toolbar){
+			toolbar = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+			gtk_window_set_title(GTK_WINDOW(toolbar), "Toolbar");
+			gtk_window_set_default_size(GTK_WINDOW(toolbar), 200, 500);
+			gtk_widget_set_uposition(toolbar, 240, 260);
+			gtk_container_set_border_width(GTK_CONTAINER(toolbar), 20);
 	
-		g_signal_connect(G_OBJECT(toolbar), "delete-event",
-										 G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+			g_signal_connect(G_OBJECT(toolbar), "delete-event",
+											 G_CALLBACK(gtk_widget_hide_on_delete), NULL);
 
-		table = gtk_table_new(9, 2, TRUE);
-		gtk_table_set_row_spacings(GTK_TABLE(table), 2);
-		gtk_table_set_col_spacings(GTK_TABLE(table), 2);
+			table = gtk_table_new(9, 2, TRUE);
+			gtk_table_set_row_spacings(GTK_TABLE(table), 2);
+			gtk_table_set_col_spacings(GTK_TABLE(table), 2);
 
-		//Drawing
-		button = gtk_button_new_with_label("Draw");
-		gtk_table_attach_defaults(GTK_TABLE(table), button, 0, 1, 0, 1);
+			//Drawing
+			button = gtk_button_new_with_label("Draw");
+			gtk_table_attach_defaults(GTK_TABLE(table), button, 0, 1, 0, 1);
 
-		g_signal_connect(G_OBJECT(button), "clicked",
-										 G_CALLBACK(draw_button_click_event), NULL);
+			g_signal_connect(G_OBJECT(button), "clicked",
+											 G_CALLBACK(draw_button_click_event), NULL);
 
-		//Erasing
-		button = gtk_button_new_with_label("Erase");
-		gtk_table_attach_defaults(GTK_TABLE(table), button, 1, 2, 0, 1);
+			//Erasing
+			button = gtk_button_new_with_label("Erase");
+			gtk_table_attach_defaults(GTK_TABLE(table), button, 1, 2, 0, 1);
 
-		g_signal_connect(G_OBJECT(button), "clicked",
-										 G_CALLBACK(erase_button_click_event), NULL);
+			g_signal_connect(G_OBJECT(button), "clicked",
+											 G_CALLBACK(erase_button_click_event), NULL);
 
-		button = gtk_color_button_new();
-		gtk_table_attach_defaults(GTK_TABLE(table), button, 0, 2, 6, 8);
+			button = gtk_color_button_new();
+			gtk_table_attach_defaults(GTK_TABLE(table), button, 0, 2, 6, 8);
 
 		
-		g_signal_connect(G_OBJECT(button), "color-set",
-										 G_CALLBACK(color_set_event), NULL);
+			g_signal_connect(G_OBJECT(button), "color-set",
+											 G_CALLBACK(color_set_event), NULL);
 
-		//hscale
-		hscale = gtk_hscale_new_with_range(2, 30, 1);
-		gtk_table_attach_defaults(GTK_TABLE(table), hscale, 0, 2, 4, 5);
+			//hscale
+			hscale = gtk_hscale_new_with_range(2, 30, 1);
+			gtk_table_attach_defaults(GTK_TABLE(table), hscale, 0, 2, 4, 5);
   
-		g_signal_connect(G_OBJECT(hscale), "value-changed",
-										 G_CALLBACK(scale_change_event), NULL);
+			g_signal_connect(G_OBJECT(hscale), "value-changed",
+											 G_CALLBACK(scale_change_event), NULL);
 
-		gtk_container_add(GTK_CONTAINER(toolbar), table);
+			gtk_container_add(GTK_CONTAINER(toolbar), table);
+		}
 	}
-}
 
-/*-------------------------------- Server Data -------------------------------*/
-void draw_from_server(gint rectbuff[4], guint colorbuff[4]){
-	GdkRectangle update_rect;
-	GdkColor col;
-	cairo_t* cr = NULL;
+	/*-------------------------------- Server Data -------------------------------*/
+	void draw_from_server(gint rectbuff[4], guint colorbuff[4]){
+		GdkRectangle update_rect;
+		GdkColor col;
+		cairo_t* cr = NULL;
 
-	/* Create and set GdkRectangle values based on rectbuff */
-	memset(&update_rect, 0, sizeof(GdkRectangle));
-	update_rect.x = rectbuff[0];
-	update_rect.y = rectbuff[1];
-	update_rect.width = rectbuff[2];
-	update_rect.height = rectbuff[3];
+		/* Create and set GdkRectangle values based on rectbuff */
+		memset(&update_rect, 0, sizeof(GdkRectangle));
+		update_rect.x = rectbuff[0];
+		update_rect.y = rectbuff[1];
+		update_rect.width = rectbuff[2];
+		update_rect.height = rectbuff[3];
 
-	/* Create and set GdkColor values based on colorbuff */
-	memset(&col, 0, sizeof(GdkColor));
-	col.pixel = colorbuff[0];
-	col.red = colorbuff[1];
-	col.green = colorbuff[2];
-	col.blue = colorbuff[3];
+		/* Create and set GdkColor values based on colorbuff */
+		memset(&col, 0, sizeof(GdkColor));
+		col.pixel = colorbuff[0];
+		col.red = colorbuff[1];
+		col.green = colorbuff[2];
+		col.blue = colorbuff[3];
 
-	cr = cairo_create(surface);
+		cr = cairo_create(surface);
 
-	gdk_cairo_set_source_color(cr, &col);
+		gdk_cairo_set_source_color(cr, &col);
 
-	gdk_cairo_rectangle(cr, &update_rect);
-	cairo_fill(cr);
-	cairo_destroy(cr);
+		gdk_cairo_rectangle(cr, &update_rect);
+		cairo_fill(cr);
+		cairo_destroy(cr);
 
-	gdk_window_invalidate_rect(da -> window,
-														 &update_rect,
-														 FALSE);
-}
+		gdk_window_invalidate_rect(da -> window,
+															 &update_rect,
+															 FALSE);
+	}
 
-/*--------------------------------- Main ------------------------------*/
+	/*--------------------------------- Main ------------------------------*/
 
 void read_from_server(gpointer data, gint source, GdkInputCondition condition){
 	guint cbuff[4];
 	gint rbuff[4];
 	char rd_buffer[256];
 	
-	read(source, rd_buffer, 256);
+	read(source, rd_buffer, sizeof(gint)*4+sizeof(guint)*4);
 	//printf("%s\n", rd_buffer);
-	if (rd_buffer[0] == 'c')
-		unserialize_gdkColor(cbuff, rd_buffer);
-	else
-		unserialize_gdkRectangle(rbuff, rd_buffer);
-
-	read(source, rd_buffer, 256);
-	//printf("%s\n", rd_buffer);
-	if (rd_buffer[0] == 'c')
-		unserialize_gdkColor(cbuff, rd_buffer);
-	else
-		unserialize_gdkRectangle(rbuff, rd_buffer);
+  unserialize_data(rbuff, cbuff, rd_buffer);
 
 	draw_from_server(rbuff, cbuff);
 }
-
 
 
 int main(int argc, char *argv[]){
@@ -439,20 +411,5 @@ int main(int argc, char *argv[]){
 	gtk_main();
 }
 
-void read_from_server( int socket_id, guint cbuff[4], gint cbuff[4] ){
-
-	//read twice, once for color, then for rect
-	read(socket_id, rd_buffer, 256);
-	if (rd_buffer[0] == 'c')
-		unserialize_gdkColor(cbuff, rd_buffer);
-	else
-		unserialize_gdkRectangle(rbuff, rd_buffer);
-
-	read(socket_id, rd_buffer, 256);
-	if (rd_buffer[0] == 'c')
-		unserialize_gdkColor(cbuff, rd_buffer);
-	else
-		unserialize_gdkRectangle(rbuff, rd_buffer);
-}
 
 

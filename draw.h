@@ -2,11 +2,9 @@
 #define DRAW
 
 
-void* serialize_gdkColor(GdkColor* color);
+void* serialize_data(GdkRectangle* rect, GdkColor* color);
 
-void* serialize_gdkRectangle(GdkRectangle* rect);
-
-void unserialize_gdkColor(guint buff[4], void* read_buff);
+void unserialize_data(gint rbuff[4], guint cbuff[4], void* read_buff);
 
 void unserialize_gdkRectangle(gint buff[4], void* read_buff);
 

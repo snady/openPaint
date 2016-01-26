@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <gtk/gtk.h>
 	
 #define PORT 8003
 #define BUFSIZE 1024
@@ -14,26 +15,23 @@
 void send_to_all(int j, int i, int sockfd, int nbytes_recvd, void *recv_buf, fd_set *master){
 	if (FD_ISSET(j, master)){
 		if (j != sockfd && j != i) {
-			printf("Read: %d\n", *((int*)recv_buf));
 			write(j, recv_buf, nbytes_recvd);
-			printf("Wrote it\n");
 		}
 	}
 }
 		
 void send_recv(int i, fd_set *master, int sockfd, int fdmax){
-
+	int bufsize = sizeof(gint)*4+sizeof(guint)*4;
 	int nbytes_recvd, j;
-	void recv_buf[BUFSIZE], buf[BUFSIZE];
-	
-	nbytes_recvd = read(i, recv_buf, BUFSIZE);
-	printf("Read: %d\n", *((int*)recv_buf));
-	//printf("Read: %s\n", recv_buf); 
+	void* recv_buf = (void*)malloc(bufsize);
+
+	nbytes_recvd = read(i, recv_buf, bufsize); 
 	close(i);
 	FD_CLR(i, master);
 	for(j = 0; j <= fdmax; j++){
 		send_to_all(j, i, sockfd, nbytes_recvd, recv_buf, master );
-	}	
+	}
+	free(recv_buf);
 }
 		
 void connection_accept(fd_set *master, int *fdmax, int sockfd, struct sockaddr_in *client_addr){

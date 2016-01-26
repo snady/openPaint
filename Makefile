@@ -10,7 +10,7 @@ gui: gtk_test.c
 	gcc -o gui gtk_test.c `pkg-config --cflags --libs gtk+-2.0`
 
 select:
-	gcc -o select select.c
+	gcc -o select select.c `pkg-config --cflags --libs gtk+-2.0`
 
 draw: draw.c
 	gcc -o draw draw.c `pkg-config --cflags --libs gtk+-2.0`
