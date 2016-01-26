@@ -6,128 +6,120 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
- 
-int main(){
+#include <netdb.h>
+	
+#define PORT 8003
+#define BUFSIZE 1024
 
-  fd_set master;
-  /* temp file descriptor list for select() */
-  fd_set read_fds;
-  /* server address */
-  struct sockaddr_in serveraddr;
-  /* client address */
-  struct sockaddr_in clientaddr;
-  /* maximum file descriptor number */
-  int fdmax;
-  /* listening socket descriptor */
-  int listener;
-  /* newly accept()ed socket descriptor */
-  int newfd;
-  /* buffer for client data */
-  char buf[1024];
-  int nbytes;
-  /* for setsockopt() SO_REUSEADDR, below */
-  int yes = 1;
-  int addrlen;
-  int i, j;
-  /* clear the master and temp sets */
-  FD_ZERO(&master);
-  FD_ZERO(&read_fds);
- 
-  /* get the listener */
-  if((listener = socket(AF_INET, SOCK_STREAM, 0)) == -1){
-    perror("Server-socket() error lol!");
-  /*just exit lol!*/
-  exit(1);
-  }
-  printf("Server-socket() is OK...\n");
-    /*"address already in use" error message */
-  if(setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1){
-    perror("Server-setsockopt() error lol!");
-    exit(1);
-  }
-  printf("Server-setsockopt() is OK...\n");
- 
-  /* bind */
-  serveraddr.sin_family = AF_INET;
-  serveraddr.sin_addr.s_addr = INADDR_ANY;
-  serveraddr.sin_port = htons(PORT);
-  memset(&(serveraddr.sin_zero), '\0', 8);
- 
-  if(bind(listener, (struct sockaddr *)&serveraddr, sizeof(serveraddr)) == -1){
-    perror("Server-bind() error lol!");
-    exit(1);
-  }
-  printf("Server-bind() is OK...\n");
- 
-  /* listen */
-  if(listen(listener, 10) == -1){
-     perror("Server-listen() error lol!");
-     exit(1);
-  }
-  printf("Server-listen() is OK...\n");
- 
-  /* add the listener to the master set */
-  FD_SET(listener, &master);
-  /* keep track of the biggest file descriptor */
-  fdmax = listener; /* so far, it's this one*/
- 
-  /* loop */
-  for(;;){
-  /* copy it */
-  read_fds = master;
- 
-  if(select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1){
-    perror("Server-select() error lol!");
-    exit(1);
-  }
-  printf("Server-select() is OK...\n");
- 
-  /*run through the existing connections looking for data to be read*/
-  for(i = 0; i <= fdmax; i++){
-    if(FD_ISSET(i, &read_fds)){ /* we got one... */
-      if(i == listener){
-         /* handle new connections */
-        addrlen = sizeof(clientaddr);
-      if((newfd = accept(listener, (struct sockaddr *)&clientaddr, &addrlen)) == -1){
-        perror("Server-accept() error lol!");
-      }
-      else{
-        printf("Server-accept() is OK...\n");
-        FD_SET(newfd, &master); /* add to master set */
-        if(newfd > fdmax){ /* keep track of the maximum */
-          fdmax = newfd;
-        }
-      printf("%s: New connection from %s on socket %d\n", argv[0], inet_ntoa(clientaddr.sin_addr), newfd);
-    }
-  }else{
-  /* handle data from a client */
-  if((nbytes = recv(i, buf, sizeof(buf), 0)) <= 0){
-  /* got error or connection closed by client */
-    if(nbytes == 0)
-    /* connection closed */
-      printf("%s: socket %d hung up\n", argv[0], i);
-    else
-      perror("recv() error lol!");
-    /* close it... */
-    close(i);
-    /* remove from master set */
-    FD_CLR(i, &master);
-  }else{
-  /* we got some data from a client*/
-  for(j = 0; j <= fdmax; j++){
-  /* send to everyone! */
-  if(FD_ISSET(j, &master)){
-       /* except the listener and ourselves */
-       if(j != listener && j != i){
-              if(send(j, buf, nbytes, 0) == -1)
-                     perror("send() error lol!");
-       }
-     }
-  }
-  }
+void send_to_all(int j, int i, int sockfd, int nbytes_recvd, char *recv_buf, fd_set *master)
+{
+	if (FD_ISSET(j, master)){
+		if (j != sockfd && j != i) {
+			if (send(j, recv_buf, nbytes_recvd, 0) == -1) {
+				perror("send");
+			}
+		}
+	}
 }
+		
+void send_recv(int i, fd_set *master, int sockfd, int fdmax)
+{
+	int nbytes_recvd, j;
+	char recv_buf[BUFSIZE], buf[BUFSIZE];
+	
+	if ((nbytes_recvd = recv(i, recv_buf, BUFSIZE, 0)) <= 0) {
+		if (nbytes_recvd == 0) {
+			printf("socket %d hung up\n", i);
+		}else {
+			perror("recv");
+		}
+		close(i);
+		FD_CLR(i, master);
+	}else { 
+	//	printf("%s\n", recv_buf);
+		for(j = 0; j <= fdmax; j++){
+			send_to_all(j, i, sockfd, nbytes_recvd, recv_buf, master );
+		}
+	}	
 }
+		
+void connection_accept(fd_set *master, int *fdmax, int sockfd, struct sockaddr_in *client_addr)
+{
+	socklen_t addrlen;
+	int newsockfd;
+	
+	addrlen = sizeof(struct sockaddr_in);
+	if((newsockfd = accept(sockfd, (struct sockaddr *)client_addr, &addrlen)) == -1) {
+		perror("accept");
+		exit(1);
+	}else {
+		FD_SET(newsockfd, master);
+		if(newsockfd > *fdmax){
+			*fdmax = newsockfd;
+		}
+		printf("new connection from %s on port %d \n",inet_ntoa(client_addr->sin_addr), ntohs(client_addr->sin_port));
+	}
 }
+	
+void connect_request(int *sockfd, struct sockaddr_in *my_addr)
+{
+	int yes = 1;
+		
+	if ((*sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+		perror("Socket");
+		exit(1);
+	}
+		
+	my_addr->sin_family = AF_INET;
+	my_addr->sin_port = htons(PORT);
+	my_addr->sin_addr.s_addr = INADDR_ANY;
+	memset(my_addr->sin_zero, '\0', sizeof my_addr->sin_zero);
+		
+	if (setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
+		perror("setsockopt");
+		exit(1);
+	}
+		
+	if (bind(*sockfd, (struct sockaddr *)my_addr, sizeof(struct sockaddr)) == -1) {
+		perror("Unable to bind");
+		exit(1);
+	}
+	if (listen(*sockfd, 10) == -1) {
+		perror("listen");
+		exit(1);
+	}
+	printf("\nTCPServer Waiting for client on port 8003\n");
+	fflush(stdout);
 }
-return 0;
+int main()
+{
+	fd_set master;
+	fd_set read_fds;
+	int fdmax, i;
+	int sockfd= 0;
+	struct sockaddr_in my_addr, client_addr;
+	
+	FD_ZERO(&master);
+	FD_ZERO(&read_fds);
+	connect_request(&sockfd, &my_addr);
+	FD_SET(sockfd, &master);
+	
+	fdmax = sockfd;
+	while(1){
+		read_fds = master;
+		if(select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1){
+			perror("select");
+			exit(4);
+		}
+		
+		for (i = 0; i <= fdmax; i++){
+			if (FD_ISSET(i, &read_fds)){
+				if (i == sockfd)
+					connection_accept(&master, &fdmax, sockfd, &client_addr);
+				else
+					send_recv(i, &master, sockfd, fdmax);
+			}
+		}
+	}
+	return 0;
 }

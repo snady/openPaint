@@ -352,15 +352,21 @@ void draw_from_server(gint rectbuff[4], guint colorbuff[4]){
 
 int main(int argc, char *argv[]){
   
-  int socket_id;
-  char buffer[256];
-  int i;
+    int socket_id;
+    char rd_buffer[256];
+    char wr_buffer[256];
+    int i;
+    int fdmax;
+	struct sockaddr_in server_addr;
+	fd_set master;
+	fd_set read_fds;
 	guint colorbuff[4];
 	gint rectbuff[4];
 
-	socket_id = socket( AF_INET, SOCK_STREAM, 0);
+    socket_id = socket( AF_INET, SOCK_STREAM, 0);
 
   struct sockaddr_in sock;
+  
   sock.sin_family = AF_INET;
   sock.sin_port = htons(MY_PORT);
   inet_aton("127.0.0.1", &(sock.sin_addr));
@@ -371,6 +377,25 @@ int main(int argc, char *argv[]){
   if ( i < 0 ){
     printf("Error: %s\n", strerror(errno));
   }
+  
+    FD_ZERO(&master);
+    FD_ZERO(&read_fds);
+    FD_SET(0, &master);
+    FD_SET(socket_id, &master);
+    fdmax = socket_id;
+    
+    //may encounter problems with this??
+    while(1){
+		read_fds = master;
+		if(select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1){
+			perror("select");
+			exit(4);
+		}
+		for(i=0; i <= fdmax; i++ )
+			if(FD_ISSET(i, &read_fds))
+				read(socket_id, rd_buffer, 256);
+	}
+	close(socket_id);
   
   gtk_init (&argc, &argv);
   setup_window();

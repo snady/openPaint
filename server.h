@@ -1,7 +1,7 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#define MY_PORT 8765
+#define MY_PORT 8003
 #define PIPE_RDWR
 
 #define PIPE_RD 0
