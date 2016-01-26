@@ -23,6 +23,7 @@ static cairo_surface_t* surface = NULL;
 static GtkWidget* toolbar = NULL;
 static GdkColor* color = NULL;
 static gboolean drawing = TRUE;
+gdouble size;
 
 
 /*----------------------------- Data Handling ------------------------------*/
@@ -105,11 +106,14 @@ void draw_brush(GtkWidget *widget, gdouble x, gdouble y, int* socket_id){
   memset(&update_rect, 0, sizeof(GdkRectangle));
      
   cairo_t *cr = NULL;
-     
-  update_rect.x = x - 2;
-  update_rect.y = y - 2;
-  update_rect.width = 4;
-  update_rect.height = 4;
+
+	if (!size)
+		size = 2;
+	
+	update_rect.x = x - size / 2;
+  update_rect.y = y - size / 2;
+  update_rect.width = size;
+  update_rect.height = size;
      
   /* Paint to the surface, where state is stored */
   cr = cairo_create(surface);
@@ -269,48 +273,64 @@ void erase_button_click_event(GtkWidget* widget, gpointer data){
 }
 
 
-void setup_toolbar(){
-  GtkWidget* table;
-  GtkWidget* button;
-  GdkColor* col;
-  GdkCursor* cursor;
-
-  if (!toolbar){
-    toolbar = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    gtk_window_set_title(GTK_WINDOW(toolbar), "Toolbar");
-    gtk_window_set_default_size(GTK_WINDOW(toolbar), 200, 500);
-    gtk_widget_set_uposition(toolbar, 240, 260);
-    gtk_container_set_border_width(GTK_CONTAINER(toolbar), 20);
+void scale_change_event(GtkWidget* widget, gpointer data){
+	GtkAdjustment* range;
 	
-    g_signal_connect(G_OBJECT(toolbar), "delete-event",
+	range = gtk_range_get_adjustment(GTK_RANGE(widget));
+	size = gtk_adjustment_get_value(range);
+}
+
+void setup_toolbar(){
+	GtkWidget* table;
+	GtkWidget* button;
+	GtkWidget* hscale;
+	GtkAdjustment* range;
+	GdkColor* col;
+
+	if (!toolbar){
+		toolbar = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+		gtk_window_set_title(GTK_WINDOW(toolbar), "Toolbar");
+		gtk_window_set_default_size(GTK_WINDOW(toolbar), 200, 500);
+		gtk_widget_set_uposition(toolbar, 240, 260);
+		gtk_container_set_border_width(GTK_CONTAINER(toolbar), 20);
+	
+		g_signal_connect(G_OBJECT(toolbar), "delete-event",
 										 G_CALLBACK(gtk_widget_hide_on_delete), NULL);
 
-    table = gtk_table_new(8, 2, TRUE);
-    gtk_table_set_row_spacings(GTK_TABLE(table), 2);
-    gtk_table_set_col_spacings(GTK_TABLE(table), 2);
+		table = gtk_table_new(9, 2, TRUE);
+		gtk_table_set_row_spacings(GTK_TABLE(table), 2);
+		gtk_table_set_col_spacings(GTK_TABLE(table), 2);
 
-    //Drawing
-    button = gtk_button_new_with_label("Draw");
-    gtk_table_attach_defaults(GTK_TABLE(table), button, 0, 1, 0, 1);
+		//Drawing
+		button = gtk_button_new_with_label("Draw");
+		gtk_table_attach_defaults(GTK_TABLE(table), button, 0, 1, 0, 1);
 
-    g_signal_connect(G_OBJECT(button), "clicked",
+		g_signal_connect(G_OBJECT(button), "clicked",
 										 G_CALLBACK(draw_button_click_event), NULL);
 
 		//Erasing
 		button = gtk_button_new_with_label("Erase");
-    gtk_table_attach_defaults(GTK_TABLE(table), button, 1, 2, 0, 1);
+		gtk_table_attach_defaults(GTK_TABLE(table), button, 1, 2, 0, 1);
 
-    g_signal_connect(G_OBJECT(button), "clicked",
+		g_signal_connect(G_OBJECT(button), "clicked",
 										 G_CALLBACK(erase_button_click_event), NULL);
 
-    button = gtk_color_button_new();
-    gtk_table_attach_defaults(GTK_TABLE(table), button, 0, 2, 6, 8);
+		button = gtk_color_button_new();
+		gtk_table_attach_defaults(GTK_TABLE(table), button, 0, 2, 6, 8);
+
 		
-    g_signal_connect(G_OBJECT(button), "color-set",
+		g_signal_connect(G_OBJECT(button), "color-set",
 										 G_CALLBACK(color_set_event), NULL);
 
-    gtk_container_add(GTK_CONTAINER(toolbar), table);
-  }
+		//hscale
+		hscale = gtk_hscale_new_with_range(2, 30, 1);
+		gtk_table_attach_defaults(GTK_TABLE(table), hscale, 0, 2, 4, 5);
+  
+		g_signal_connect(G_OBJECT(hscale), "value-changed",
+										 G_CALLBACK(scale_change_event), NULL);
+
+		gtk_container_add(GTK_CONTAINER(toolbar), table);
+	}
 }
 
 /*-------------------------------- Server Data -------------------------------*/
@@ -352,33 +372,33 @@ void draw_from_server(gint rectbuff[4], guint colorbuff[4]){
 
 int main(int argc, char *argv[]){
   
-  int socket_id;
-  char buffer[256];
-  int i;
+	int socket_id;
+	char buffer[256];
+	int i;
 	guint colorbuff[4];
 	gint rectbuff[4];
 
 	socket_id = socket( AF_INET, SOCK_STREAM, 0);
 
-  struct sockaddr_in sock;
-  sock.sin_family = AF_INET;
-  sock.sin_port = htons(MY_PORT);
-  inet_aton("127.0.0.1", &(sock.sin_addr));
-  bind(socket_id, (struct sockaddr*)&sock, sizeof(sock));
+	struct sockaddr_in sock;
+	sock.sin_family = AF_INET;
+	sock.sin_port = htons(MY_PORT);
+	inet_aton("127.0.0.1", &(sock.sin_addr));
+	bind(socket_id, (struct sockaddr*)&sock, sizeof(sock));
 
-  i = connect(socket_id, (struct sockaddr*)&sock, sizeof(sock));
-  printf("<client> Connect returned: %d\n", i);
-  if ( i < 0 ){
-    printf("Error: %s\n", strerror(errno));
-  }
+	i = connect(socket_id, (struct sockaddr*)&sock, sizeof(sock));
+	printf("<client> Connect returned: %d\n", i);
+	if ( i < 0 ){
+		printf("Error: %s\n", strerror(errno));
+	}
   
-  gtk_init (&argc, &argv);
-  setup_window();
-  setup_toolbar();
+	gtk_init (&argc, &argv);
+	setup_window();
+	setup_toolbar();
 	
-  do_drawing(&socket_id);
-  gtk_widget_show_all(window);
-  gtk_widget_show_all(toolbar);
+	do_drawing(&socket_id);
+	gtk_widget_show_all(window);
+	gtk_widget_show_all(toolbar);
 	
 	while(1){
 		gtk_main_iteration_do(TRUE);
