@@ -55,6 +55,16 @@ void serialize_gdkRectangle(gint buff[4], GdkRectangle* rect){
   */
 }
 
+void unserialize_gdkColor(guint buff[4], void* read_buff){
+  //assuming read_buff[1] is a char of size 1
+  memcpy(buff, read_buff[1], sizeof(buff));
+}
+
+void unserialize_gdkRectangle(gint buff[4], void* read_buff){
+  //assuming read_buff[1] is a char of size 1
+  memcpy(buff, read_buff[1], sizeof(buff));
+}
+
 
 /*----------------------------- Drawing Area ------------------------------*/
 
@@ -428,11 +438,12 @@ int main(int argc, char *argv[]){
 			if(FD_ISSET(i, &read_fds)){
         if(i==socket_id){
 				  read(socket_id, rd_buffer, 256);
+          //unserialize data
         }else{
           gtk_main_iteration_do(TRUE);
         }
+      }
 	}
-	close(socket_id);
 	
 	//	while(1){
 	//read(socket_id, rectbuff, sizeof(rectbuff));
