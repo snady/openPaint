@@ -2,13 +2,16 @@
 #define DRAW
 
 
-void* serialize_data(GdkRectangle* rect, GdkColor* color);
+void serialize_data(GdkRectangle* rect, GdkColor* color, char* buff);
 
-void unserialize_data(gint rbuff[4], guint cbuff[4], void* read_buff);
+void unserialize_data(GdkRectangle* rect, GdkColor* col, char* read_buff);
 
-void unserialize_gdkRectangle(gint buff[4], void* read_buff);
+char** parse(char* line, char dlimit);
+
 
 void read_from_server(gpointer data, gint source, GdkInputCondition condition);
+
+void draw_from_server(GdkRectangle* rect, GdkColor* col, GtkWidget* widget);
 
 gboolean scribble_configure_event(GtkWidget *widget,
 																	GdkEventConfigure *event,
