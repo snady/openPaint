@@ -1,0 +1,9 @@
+- <gtk/gtk.h> not recognized - Resolved 1-18-16
+- Clicking close button does not end program - Resolved 1-19-16
+- Color change event on color picker not triggering - Resolved 1-20-16
+- Server cannot wait on input from all pipes due to blocking - Resolved 1-25-16
+- Client blocking on read, drawing events cannot occur - Resolved 1-26-16
+- Other clients occassionally become unresponsive when one client draws - Resolved 1-25-16
+- Data sent between clients getting messed up, random shapes appearing on other clients' canvases - Resolved 1-27-16
+
+

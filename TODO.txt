@@ -1,0 +1,11 @@
+Stuff to do:
+
+- Allow users that connect later to view the entire drawing (currently, each user can only receive the most recent strokes)
+- Add tools such as brush, bucket fill
+- Implement history to allow for undo and redo
+- Improve method of drawing (currently renders lines as many small rectangles, creates disjointed lines when mouse dragged too fast)
+- Allow for canvas resizing
+- Allow users to create and join different canvases
+- Implement a menu bar in main drawing app to get back toolbar if accidentally deleted
+- Actually comment the code (This was written during a very stressing and painful time, where half the time we did not understand what we were doing and thus were unable to provide helpful tidbits)
+
